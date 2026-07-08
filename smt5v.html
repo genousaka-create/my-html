@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMT5V 悪魔チェックリスト</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #0a0a0f;
+  --surface: #111118;
+  --card:    #16161f;
+  --card-h:  #1e1e2a;
+  --border:  #2a2a3a;
+  --text:    #e8e8f0;
+  --muted:   #7070a0;
+  --accent:  #5c6bff;
+  --green:   #39d97a;
+  --red:     #ff4466;
+}
+
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100vh; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+
+/* ===== ヘッダー ===== */
+header {
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(10,10,15,.95);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.header-title {
+  font-size: 22px; font-weight: 900;
+  color: var(--green); letter-spacing: .06em;
+  line-height: 1.2;
+}
+
+/* 検索行 */
+.row-search {
+  display: flex; gap: 8px; align-items: center;
+}
+#search {
+  flex: 1;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-size: 15px; padding: 9px 12px; outline: none;
+  transition: border-color .2s;
+}
+#search:focus { border-color: var(--accent); }
+#search::placeholder { color: var(--muted); }
+
+/* コントロール行（種族・LV・ボタン類） */
+.row-controls {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+}
+
+select {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-size: 13px; padding: 8px 10px; outline: none; cursor: pointer;
+  transition: border-color .2s;
+}
+select:focus { border-color: var(--accent); }
+
+button {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-size: 13px; padding: 8px 12px; cursor: pointer;
+  transition: background .2s, border-color .2s, color .2s;
+  white-space: nowrap;
+}
+button:hover { background: var(--card-h); border-color: var(--accent); }
+button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* 取得状況・解除行 */
+.row-stats {
+  display: flex; gap: 10px; align-items: center;
+}
+#stats-num {
+  font-size: 13px; font-weight: 700;
+  color: var(--green); white-space: nowrap;
+}
+#progressBar {
+  flex: 1; height: 6px; background: var(--border);
+  border-radius: 999px; overflow: hidden;
+}
+#progress {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  border-radius: 999px; transition: width .4s cubic-bezier(.4,0,.2,1);
+}
+#resetBtn {
+  white-space: nowrap; flex-shrink: 0;
+}
+
+/* ===== 悪魔追加フォーム ===== */
+#addForm {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+}
+#addForm input {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-size: 14px; padding: 8px 12px; outline: none;
+  transition: border-color .2s; flex: 1; min-width: 100px;
+}
+#addForm input:focus { border-color: var(--accent); }
+#addForm select {
+  flex: 1; min-width: 100px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-size: 14px; padding: 8px 12px; outline: none; cursor: pointer;
+  transition: border-color .2s;
+}
+#addForm select:focus { border-color: var(--accent); }
+#addForm input::placeholder { color: var(--muted); }
+#addForm input[type="number"] { flex: 0 0 72px; min-width: 72px; }
+#addDemonBtn {
+  background: var(--green); border: none; border-radius: 8px;
+  color: #000; font-size: 14px; font-weight: 700;
+  padding: 8px 16px; cursor: pointer; white-space: nowrap;
+  transition: background .2s;
+}
+#addDemonBtn:hover { background: #55ee99; }
+#addMsg { font-size: 12px; width: 100%; color: var(--green); min-height: 16px; }
+
+/* ===== カードリスト ===== */
+#list {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+/* ===== カード ===== */
+.card {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  transition: transform .15s, background .15s;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+}
+.card:hover { transform: translateY(-2px); background: var(--card-h); }
+.card.checked { background: #1e2030; opacity: .75; }
+
+/* ===== チェックボックス ===== */
+.cb-wrap { position: relative; width: 20px; height: 20px; flex-shrink: 0; }
+.cb-wrap input {
+  position: absolute; opacity: 0;
+  width: 100%; height: 100%; cursor: pointer; margin: 0;
+}
+.cb-box {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border); border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, border-color .15s; pointer-events: none;
+}
+.cb-wrap input:checked ~ .cb-box { background: var(--green); border-color: var(--green); }
+.cb-box::after {
+  content: '';
+  width: 4px; height: 8px;
+  border: 2px solid #fff;
+  border-top: none; border-left: none;
+  transform: rotate(45deg) translateY(-1px);
+  opacity: 0; transition: opacity .12s;
+}
+.cb-wrap input:checked ~ .cb-box::after { opacity: 1; }
+
+/* ===== カード内テキスト ===== */
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.info { flex: 1; min-width: 0; overflow: hidden; }
+.name {
+  font-size: 14px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* 種族とLVを同じ行に */
+.meta {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 3px; flex-wrap: nowrap;
+}
+.lv-label { font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.race-badge {
+  font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 999px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.15);
+  color: var(--muted); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ===== 空表示 ===== */
+#empty {
+  display: none; text-align: center; padding: 60px 20px;
+  color: var(--muted); font-size: 14px; grid-column: 1/-1;
+}
+
+/* ===== トップへ ===== */
+#topBtn {
+  position: fixed; bottom: 20px; right: 20px;
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--accent); border: none;
+  color: #fff; font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 4px 16px rgba(92,107,255,.5);
+  opacity: 0; transform: translateY(10px);
+  transition: opacity .3s, transform .3s; z-index: 300;
+}
+#topBtn.show { opacity: 1; transform: translateY(0); }
+
+/* ===== コンプリートオーバーレイ ===== */
+#completeOverlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(10,10,15,.9); z-index: 500;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px; text-align: center;
+}
+#completeOverlay.show { display: flex; }
+#completeOverlay h1 { font-size: 40px; color: var(--green); }
+#completeOverlay p  { color: var(--muted); font-size: 15px; }
+#completeOverlay button {
+  background: var(--accent); border-color: var(--accent);
+  color: #fff; padding: 10px 24px; font-size: 14px;
+}
+
+/* ===== 追加フォーム折り畳み ===== */
+#addSection {
+  border-top: 1px solid var(--border);
+}
+#addSection summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--surface);
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color .2s;
+}
+#addSection summary::-webkit-details-marker { display: none; }
+#addSection summary::before {
+  content: '▶';
+  font-size: 10px;
+  transition: transform .2s;
+  display: inline-block;
+}
+#addSection[open] summary::before { transform: rotate(90deg); }
+#addSection summary:hover { color: var(--green); }
+#addSection[open] summary { color: var(--green); border-bottom: 1px solid var(--border); }
+#addForm { border-top: none; }
+
+/* ===== フェードイン ===== */
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(6px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.card { animation: fadeUp .2s ease both; }
+
+/* ===== レスポンシブ ===== */
+/* タブレット: 3列 */
+@media(max-width:1024px){
+  #list { grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+/* スマホ: 2列 */
+@media(max-width:600px){
+  html, body { overflow-x: hidden; }
+  .header-title { font-size: 15px; }
+  header { padding: 8px 10px; gap: 6px; }
+  #search { font-size: 13px; padding: 7px 10px; }
+  select, button { font-size: 11px; padding: 6px 8px; }
+  #list {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    padding: 6px; gap: 5px;
+  }
+  /* カードを縦積みに（チェック+情報） */
+  .card {
+    padding: 7px 8px;
+  }
+  .info { min-width: 0; }
+  .name { font-size: 11px; }
+  .meta { gap: 4px; margin-top: 2px; }
+  .lv-label  { font-size: 10px; }
+  .race-badge { font-size: 9px; }
+  /* 耐性を全幅で */
+  .res-hdr-row, .res-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0,1fr));
+  gap: 2px;
+  margin-top: 2px;
+}
+  .res-hdr-row span { font-size: 10px; }
+  .rv {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+  border-radius: 3px;
+  padding: 2px 0;
+  line-height: 1.2;
+}
+  .row-st { font-size: 8px; }
+}
+@media(max-width:360px){
+  #list { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 4px; padding: 4px; }
+  .name { font-size: 10px; }
+  .rv   { font-size: 9px; }
+  .res-hdr-row span { font-size: 7px; }
+}
+
+/* ===== 耐性表示 ===== */
+.res-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0,1fr));
+  gap: 2px;
+  margin-top: 5px;
+}
+.res-hdr-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0,1fr));
+  gap: 2px;
+  margin-top: 4px;
+}
+.res-hdr-row span {
+  text-align: center;
+  font-size: 10px;
+  color: var(--color-text-secondary, #888);
+  font-family: monospace;
+}
+.rv {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: monospace;
+  border-radius: 3px;
+  padding: 2px 0;
+  line-height: 1.2;
+}
+.rv.dash { color: #444; }
+.rv.w  { background: #4a1020; color: #ff8099; }
+.rv.r  { background: #0e2e52; color: #6ab0ff; }
+.rv.n  { background: #1e1060; color: #a090ff; }
+.rv.a  { background: #0d3320; color: #4ddb80; }
+.rv.p  { background: #3d2000; color: #ffaa44; }
+.row-st {
+  font-size: 9px;
+  color: #886688;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 耐性フィルター */
+#resFilter { font-size: 12px; }
+
+/* フィルターリセットボタン */
+#filterResetBtn {
+  display: none;
+  background: var(--orange, #ff9330);
+  border-color: var(--orange, #ff9330);
+  color: #fff;
+}
+#filterResetBtn:hover {
+  opacity: .85;
+}
+</style>
+</head>
+<body>
+
+<!-- ===== ヘッダー ===== -->
+<header>
+  <div class="header-title">真・女神転生5V 悪魔チェックリスト</div>
+
+  <!-- 検索 -->
+  <div class="row-search">
+    <input type="text" id="search" placeholder="🔍 悪魔名を検索…">
+  </div>
+
+  <!-- 種族・LV・ボタン類・全解除（同じ行） -->
+  <div class="row-controls">
+    <select id="raceFilter"><option value="">全種族</option></select>
+    <select id="sortMode">
+      <option value="levelAsc">Lv 昇順</option>
+      <option value="levelDesc">Lv 降順</option>
+      <option value="name">名前順</option>
+      <option value="race">種族順</option>
+    </select>
+    <select id="resFilter">
+      <option value="">耐性で絞込み</option>
+      <option value="0_弱">物 弱点</option><option value="0_耐">物 耐性</option><option value="0_無">物 無効</option><option value="0_吸">物 吸収</option><option value="0_反">物 反射</option>
+      <option value="1_弱">火 弱点</option><option value="1_耐">火 耐性</option><option value="1_無">火 無効</option><option value="1_吸">火 吸収</option><option value="1_反">火 反射</option>
+      <option value="2_弱">氷 弱点</option><option value="2_耐">氷 耐性</option><option value="2_無">氷 無効</option><option value="2_吸">氷 吸収</option><option value="2_反">氷 反射</option>
+      <option value="3_弱">雷 弱点</option><option value="3_耐">雷 耐性</option><option value="3_無">雷 無効</option><option value="3_吸">雷 吸収</option><option value="3_反">雷 反射</option>
+      <option value="4_弱">衝 弱点</option><option value="4_耐">衝 耐性</option><option value="4_無">衝 無効</option><option value="4_吸">衝 吸収</option><option value="4_反">衝 反射</option>
+      <option value="5_弱">光 弱点</option><option value="5_耐">光 耐性</option><option value="5_無">光 無効</option><option value="5_吸">光 吸収</option><option value="5_反">光 反射</option>
+      <option value="6_弱">呪 弱点</option><option value="6_耐">呪 耐性</option><option value="6_無">呪 無効</option><option value="6_吸">呪 吸収</option><option value="6_反">呪 反射</option>
+    </select>
+    <button id="uncheckedBtn">未取得のみ</button>
+    <button id="filterResetBtn">🔄 絞込み解除</button>
+    <button id="resetBtn" onclick="resetChecks()">全解除</button>
+  </div>
+
+  <!-- 取得状況（同じ行） -->
+  <div class="row-stats">
+    <div id="stats-num">取得 0 / 0（0%）</div>
+    <div id="progressBar"><div id="progress"></div></div>
+  </div>
+</header>
+
+<!-- ===== リスト ===== -->
+<div id="list"><div id="empty">該当する悪魔が見つかりませんでした</div></div>
+
+<!-- ===== 悪魔追加フォーム ===== -->
+<details id="addSection">
+  <summary>＋ 悪魔を追加する</summary>
+  <div id="addForm">
+    <input type="text"   id="addName"  placeholder="悪魔名">
+    <select id="addRace"><option value="">種族を選択</option></select>
+    <input type="number" id="addLevel" placeholder="Lv" min="1" max="99">
+    <button id="addDemonBtn">＋ 追加</button>
+    <div id="addMsg"></div>
+  </div>
+</details>
+
+<!-- ===== トップへ ===== -->
+<button id="topBtn" title="トップへ戻る">↑</button>
+
+<!-- ===== 完了演出 ===== -->
+<div id="completeOverlay">
+  <h1>🎉 コンプリート！</h1>
+  <p>全悪魔の収集おめでとうございます！</p>
+  <button onclick="document.getElementById('completeOverlay').classList.remove('show')">閉じる</button>
+</div>
+
+<script>
+// ===== 耐性表示ユーティリティ =====
+const HDR = ["物","火","氷","雷","衝","光","呪"];
+function rvCls(v){ return {弱:"w",耐:"r",無:"n",吸:"a",反:"p"}[v]||"dash"; }
+function rvTxt(v){ return(!v||v==="-")?"─":v; }
+function buildResHTML(res){
+  if(!res) return '';
+  const hdr = HDR.map(h=>`<span>${h}</span>`).join('');
+  const val = res.map(v=>`<span class="rv ${rvCls(v)}">${rvTxt(v)}</span>`).join('');
+  return `<div class="res-hdr-row">${hdr}</div><div class="res-row">${val}</div>`;
+}
+
+// ========================================
+// 悪魔データ
+// ========================================
+const demons = [
+  {name:"マタドール", race:"魔人", level:24, res:["-","-","-","弱","無","耐","耐"], st:"―"},
+  {name:"だいそうじょう", race:"魔人", level:30, res:["-","弱","-","-","-","無","無"], st:"―"},
+  {name:"ヘルズエンジェル", race:"魔人", level:36, res:["-","無","弱","-","無","耐","耐"], st:"―"},
+  {name:"アリス", race:"魔人", level:40, res:["-","-","-","-","-","弱","吸"], st:"―"},
+  {name:"ホワイトライダー", race:"魔人", level:43, res:["-","反","-","弱","-","耐","耐"], st:"―"},
+  {name:"レッドライダー", race:"魔人", level:48, res:["-","-","弱","反","吸","耐","耐"], st:"―"},
+  {name:"ブラックライダー", race:"魔人", level:52, res:["-","-","反","-","弱","耐","耐"], st:"―"},
+  {name:"ペイルライダー", race:"魔人", level:57, res:["-","弱","無","-","-","耐","耐"], st:"―"},
+  {name:"マザーハーロット", race:"魔人", level:64, res:["反","耐","-","吸","弱","耐","耐"], st:"―"},
+  {name:"トランペッター", race:"魔人", level:73, res:["-","耐","耐","耐","耐","無","無"], st:"―"},
+  {name:"マンドレイク", race:"妖魔", level:6, res:["-","弱","-","耐","-","-","-"], st:"幻惑弱点"},
+  {name:"アガシオン", race:"妖魔", level:10, res:["-","-","弱","無","-","-","弱"], st:"―"},
+  {name:"アプサラス", race:"妖魔", level:16, res:["-","弱","耐","-","-","-","-"], st:"混乱弱点、睡眠耐性、魅了耐性"},
+  {name:"コッパテング", race:"妖魔", level:24, res:["-","-","-","弱","耐","-","-"], st:"睡眠耐性"},
+  {name:"ヴァルキリー", race:"妖魔", level:40, res:["-","-","-","-","弱","無","-"], st:"技封弱点、魅了耐性"},
+  {name:"ダイモーン", race:"妖鬼", level:7, res:["-","耐","-","弱","-","弱","無"], st:"―"},
+  {name:"アズミ", race:"妖鬼", level:11, res:["-","-","耐","弱","-","-","-"], st:"―"},
+  {name:"イッポンダタラ", race:"妖鬼", level:17, res:["-","耐","-","-","-","弱","-"], st:"毒弱点"},
+  {name:"オニ", race:"妖鬼", level:23, res:["耐","-","-","弱","-","弱","-"], st:"睡眠弱点、混乱弱点"},
+  {name:"シキオウジ", race:"妖鬼", level:29, res:["耐","弱","-","-","弱","耐","耐"], st:"混乱弱点"},
+  {name:"キンキ", race:"妖鬼", level:49, res:["-","-","-","無","弱","-","-"], st:"幻惑弱点"},
+  {name:"スイキ", race:"妖鬼", level:56, res:["-","弱","無","-","-","-","-"], st:"封技弱点"},
+  {name:"フウキ", race:"妖鬼", level:63, res:["-","-","-","弱","無","-","-"], st:"魅了弱点"},
+  {name:"オンギョウキ", race:"妖鬼", level:78, res:["耐","-","耐","-","耐","弱","-"], st:"―"},
+  {name:"バイコーン", race:"妖獣", level:14, res:["-","-","-","弱","-","弱","無"], st:"―"},
+  {name:"バグス", race:"妖獣", level:24, res:["-","弱","-","-","-","-","無"], st:"睡眠耐性"},
+  {name:"モスマン", race:"妖獣", level:29, res:["-","-","-","無","弱","-","-"], st:"幻惑耐性、毒耐性"},
+  {name:"ヌエ", race:"妖獣", level:49, res:["-","-","-","無","弱","-","-"], st:"魅了弱点"},
+  {name:"ピクシー", race:"妖精", level:2, res:["-","-","-","-","耐","-","弱"], st:"混乱弱点"},
+  {name:"ハイピクシー", race:"妖精", level:18, res:["-","-","弱","-","耐","-","-"], st:"混乱耐性、封技耐性"},
+  {name:"ジャックランタン", race:"妖精", level:20, res:["-","無","弱","-","-","-","-"], st:"混乱弱点"},
+  {name:"ジャックフロスト", race:"妖精", level:25, res:["-","弱","吸","-","-","-","-"], st:"魅了弱点"},
+  {name:"ケルピー", race:"妖精", level:30, res:["-","-","耐","-","弱","-","-"], st:"幻惑無効"},
+  {name:"セタンタ", race:"妖精", level:35, res:["-","-","-","弱","無","-","弱"], st:"混乱弱点、封技耐性"},
+  {name:"シルキー", race:"妖精", level:41, res:["-","弱","無","-","-","-","-"], st:"混乱弱点、魅了耐性、睡眠無効"},
+  {name:"オベロン", race:"妖精", level:47, res:["-","-","-","弱","無","-","-"], st:"魅了弱点"},
+  {name:"ティターニア", race:"妖精", level:57, res:["-","弱","-","-","-","無","耐"], st:"睡眠耐性、幻惑耐性"},
+  {name:"エンジェル", race:"天使", level:10, res:["-","-","-","-","弱","無","弱"], st:"―"},
+  {name:"アークエンジェル", race:"天使", level:18, res:["-","-","-","弱","-","無","弱"], st:"―"},
+  {name:"プリンシパリティ", race:"天使", level:28, res:["-","-","-","-","-","無","弱"], st:"封技弱点"},
+  {name:"パワー", race:"天使", level:39, res:["-","-","-","耐","弱","無","弱"], st:"―"},
+  {name:"ドミニオン", race:"天使", level:50, res:["-","-","-","無","弱","無","弱"], st:"―"},
+  {name:"ソロネ", race:"天使", level:64, res:["-","無","弱","-","-","無","弱"], st:"―"},
+  {name:"メルキセデク", race:"大天使", level:60, res:["-","-","-","-","弱","吸","無"], st:"―"},
+  {name:"カマエル", race:"大天使", level:69, res:["-","耐","弱","-","-","無","-"], st:"―"},
+  {name:"スラオシャ", race:"大天使", level:77, res:["-","-","耐","耐","弱","吸","-"], st:"―"},
+  {name:"アブディエル（大天使）", race:"大天使", level:80, res:["-","-","-","耐","耐","反","弱"], st:"―"},
+  {name:"ウリエル", race:"大天使", level:82, res:["-","無","弱","耐","-","無","-"], st:"―"},
+  {name:"ラファエル", race:"大天使", level:84, res:["-","弱","-","耐","無","無","-"], st:"―"},
+  {name:"ガブリエル", race:"大天使", level:86, res:["-","耐","無","弱","-","無","-"], st:"―"},
+  {name:"サンダルフォン", race:"大天使", level:88, res:["無","-","-","無","弱","無","耐"], st:"―"},
+  {name:"ミカエル", race:"大天使", level:90, res:["-","無","無","-","弱","無","-"], st:"―"},
+  {name:"メタトロン", race:"大天使", level:95, res:["-","耐","耐","耐","耐","無","-"], st:"―"},
+  {name:"アンドラス", race:"堕天使", level:18, res:["-","-","無","弱","-","弱","-"], st:"魅了耐性"},
+  {name:"ベリス", race:"堕天使", level:24, res:["-","耐","弱","-","-","-","耐"], st:"―"},
+  {name:"フォルネウス", race:"堕天使", level:31, res:["-","-","吸","弱","-","弱","無"], st:"―"},
+  {name:"エリゴール", race:"堕天使", level:37, res:["-","無","-","弱","-","-","耐"], st:"―"},
+  {name:"オセ", race:"堕天使", level:44, res:["-","弱","無","-","-","-","無"], st:"魅了弱点"},
+  {name:"フラロウス", race:"堕天使", level:50, res:["-","無","弱","-","-","-","耐"], st:"睡眠耐性"},
+  {name:"デカラビア", race:"堕天使", level:55, res:["-","-","-","-","-","弱","無"], st:"―"},
+  {name:"ネビロス", race:"堕天使", level:67, res:["-","-","-","-","弱","弱","反"], st:"―"},
+  {name:"アドラメレク", race:"堕天使", level:71, res:["-","耐","弱","-","-","-","無"], st:"―"},
+  {name:"アブディエル（堕天使）", race:"堕天使", level:89, res:["-","-","耐","耐","耐","弱","反"], st:"混乱無効"},
+  {name:"ナーガ", race:"龍王", level:27, res:["-","弱","-","無","弱","-","-"], st:"封技無効"},
+  {name:"ナーガラジャ", race:"龍王", level:40, res:["-","弱","耐","吸","弱","-","-"], st:"―"},
+  {name:"ユルング", race:"龍王", level:50, res:["-","弱","-","無","-","-","-"], st:"封技弱点"},
+  {name:"ヤマタノオロチ", race:"龍王", level:72, res:["-","無","無","弱","-","-","-"], st:"睡眠弱点、毒弱点、混乱弱点"},
+  {name:"ゲンブ", race:"龍神", level:23, res:["-","弱","無","-","-","-","-"], st:"毒弱点"},
+  {name:"ケツアルカトル", race:"龍神", level:34, res:["-","無","-","弱","-","-","-"], st:"―"},
+  {name:"セイリュウ", race:"龍神", level:45, res:["-","-","耐","弱","無","-","-"], st:"睡眠弱点"},
+  {name:"アナンタ", race:"龍神", level:59, res:["-","-","無","無","弱","無","弱"], st:"―"},
+  {name:"コウリュウ", race:"龍神", level:78, res:["-","耐","耐","耐","耐","無","弱"], st:"混乱耐性"},
+  {name:"トゥルダク", race:"邪鬼", level:11, res:["-","-","-","-","弱","-","耐"], st:"―"},
+  {name:"ラクシャーサ", race:"邪鬼", level:20, res:["-","-","弱","-","-","耐","耐"], st:"睡眠弱点"},
+  {name:"マカーブル", race:"邪鬼", level:43, res:["-","-","-","-","-","弱","無"], st:"混乱耐性、毒無効"},
+  {name:"ヘカトンケイル", race:"邪鬼", level:55, res:["-","-","-","-","弱","-","無"], st:"幻惑弱点、混乱耐性"},
+  {name:"アイトワラス", race:"邪龍", level:17, res:["-","無","弱","-","-","-","-"], st:"毒耐性"},
+  {name:"バジリスク", race:"邪龍", level:31, res:["-","耐","耐","弱","-","-","-"], st:"毒耐性"},
+  {name:"ヒュドラ", race:"邪龍", level:53, res:["-","無","弱","-","-","-","-"], st:"毒耐性"},
+  {name:"ファフニール", race:"邪龍", level:60, res:["耐","-","弱","弱","-","-","-"], st:"毒無効"},
+  {name:"セト", race:"邪龍", level:67, res:["-","-","弱","無","-","耐","耐"], st:"幻惑弱点"},
+  {name:"ヴァスキ", race:"邪龍", level:74, res:["-","弱","反","-","-","-","耐"], st:"睡眠無効、幻惑無効、毒無効"},
+  {name:"バフォメット", race:"邪神", level:33, res:["-","-","-","-","-","弱","無"], st:"毒無効"},
+  {name:"ミシャグジさま", race:"邪神", level:42, res:["-","-","-","無","弱","耐","無"], st:"睡眠耐性"},
+  {name:"ラフム", race:"邪神", level:48, res:["-","弱","耐","-","耐","-","無"], st:"混乱無効"},
+  {name:"パズス", race:"邪神", level:52, res:["-","-","弱","-","耐","-","無"], st:"混乱耐性"},
+  {name:"ギリメカラ", race:"邪神", level:66, res:["反","-","-","弱","弱","弱","耐"], st:"睡眠弱点、毒耐性"},
+  {name:"マダ", race:"邪神", level:83, res:["-","吸","弱","-","-","-","無"], st:"―"},
+  {name:"フォルトゥナ", race:"女神", level:15, res:["-","-","-","弱","無","-","弱"], st:"―"},
+  {name:"アメノウズメ", race:"女神", level:22, res:["-","-","-","無","弱","-","-"], st:"―"},
+  {name:"アナーヒター", race:"女神", level:29, res:["-","弱","吸","弱","-","無","-"], st:"幻惑耐性、混乱耐性"},
+  {name:"パールヴァティ", race:"女神", level:35, res:["-","弱","耐","-","-","耐","-"], st:"混乱無効"},
+  {name:"アルテミス", race:"女神", level:37, res:["-","弱","無","無","-","耐","耐"], st:"―"},
+  {name:"イズン", race:"女神", level:42, res:["-","-","-","弱","耐","無","-"], st:"魅了耐性"},
+  {name:"サラスヴァティ", race:"女神", level:47, res:["-","弱","無","-","-","-","弱"], st:"混乱耐性、魅了無効"},
+  {name:"スカアハ", race:"女神", level:55, res:["-","-","-","弱","無","耐","-"], st:"封技耐性"},
+  {name:"クレオパトラ", race:"女神", level:61, res:["-","-","-","-","-","-","-"], st:"―"},
+  {name:"ノルン", race:"女神", level:67, res:["-","-","-","弱","-","耐","無"], st:"封技耐性"},
+  {name:"ラクシュミ", race:"女神", level:70, res:["-","-","-","弱","耐","無","-"], st:"魅了無効"},
+  {name:"デメテル", race:"女神", level:76, res:["-","弱","-","-","-","無","無"], st:"睡眠耐性、毒耐性、魅了耐性、封技耐性"},
+  {name:"マリア", race:"女神", level:83, res:["-","-","-","弱","吸","無","耐"], st:"睡眠無効"},
+  {name:"キクリヒメ", race:"地母神", level:24, res:["-","-","-","弱","無","耐","-"], st:"魅了耐性"},
+  {name:"ハリティー", race:"地母神", level:35, res:["-","-","-","-","弱","-","無"], st:"睡眠耐性"},
+  {name:"イシス", race:"地母神", level:46, res:["-","耐","-","-","-","-","-"], st:"―"},
+  {name:"キュベレ", race:"地母神", level:56, res:["-","耐","-","弱","-","無","-"], st:"幻惑弱点"},
+  {name:"イシュタル", race:"地母神", level:62, res:["-","-","-","無","弱","無","弱"], st:"魅了耐性"},
+  {name:"スカディ", race:"地母神", level:67, res:["-","弱","耐","-","-","-","無"], st:"封技無効"},
+  {name:"ジョカ（人型）", race:"地母神", level:80, res:["-","弱","-","無","反","-","無"], st:"魅了無効"},
+  {name:"アリラト", race:"地母神", level:81, res:["-","-","-","-","-","耐","耐"], st:"睡眠無効、毒無効、封技無効、他は全耐性"},
+  {name:"イナンナ", race:"地母神", level:87, res:["弱","無","無","無","無","-","弱"], st:"―"},
+  {name:"ジョカ（蛇型）", race:"地母神", level:89, res:["-","弱","-","無","反","-","無"], st:"魅了無効"},
+  {name:"ダヌー", race:"地母神", level:93, res:["-","耐","耐","耐","耐","無","弱"], st:"―"},
+  {name:"ディオニュソス", race:"破壊神", level:44, res:["-","無","弱","耐","-","-","-"], st:"魅了無効"},
+  {name:"チェルノボグ", race:"破壊神", level:52, res:["-","-","-","-","-","弱","無"], st:"毒耐性"},
+  {name:"モト", race:"破壊神", level:63, res:["-","耐","-","弱","-","-","吸"], st:"―"},
+  {name:"ザオウゴンゲン", race:"破壊神", level:72, res:["-","耐","-","弱","-","耐","耐"], st:"睡眠無効、幻惑無効、混乱無効、魅了無効"},
+  {name:"アスラおう", race:"破壊神", level:84, res:["-","反","弱","-","-","無","耐"], st:"―"},
+  {name:"シヴァ", race:"破壊神", level:96, res:["耐","吸","弱","吸","-","耐","耐"], st:"幻惑耐性"},
+  {name:"アティス", race:"鬼神", level:27, res:["-","無","-","-","-","-","弱"], st:"睡眠弱点"},
+  {name:"ゾウチョウテン", race:"鬼神", level:36, res:["-","-","-","-","弱","無","-"], st:"―"},
+  {name:"コウモクテン", race:"鬼神", level:44, res:["-","-","-","弱","無","耐","-"], st:"―"},
+  {name:"ジコクテン", race:"鬼神", level:51, res:["-","弱","無","-","-","耐","-"], st:"―"},
+  {name:"ビシャモンテン", race:"鬼神", level:58, res:["-","無","弱","-","-","無","-"], st:"―"},
+  {name:"トール", race:"鬼神", level:66, res:["-","耐","-","吸","弱","耐","-"], st:"―"},
+  {name:"タケミナカタ", race:"国津神", level:19, res:["-","弱","-","耐","-","-","-"], st:"―"},
+  {name:"スクナヒコナ", race:"国津神", level:37, res:["-","-","無","弱","-","耐","耐"], st:"―"},
+  {name:"オオヤマツミ", race:"国津神", level:40, res:["-","弱","耐","耐","-","-","無"], st:"幻惑弱点"},
+  {name:"クシナダヒメ", race:"国津神", level:49, res:["-","-","-","-","-","無","弱"], st:"―"},
+  {name:"オオクニヌシ", race:"国津神", level:55, res:["-","-","弱","-","-","耐","耐"], st:"―"},
+  {name:"アラハバキ", race:"国津神", level:62, res:["無","弱","弱","弱","弱","耐","耐"], st:"―"},
+  {name:"シーサー", race:"聖獣", level:19, res:["-","弱","-","耐","耐","-","-"], st:"魅了弱点"},
+  {name:"チロンヌプ", race:"聖獣", level:27, res:["-","耐","耐","-","-","耐","弱"], st:"―"},
+  {name:"ハヤタロウ", race:"聖獣", level:40, res:["耐","-","-","無","弱","耐","弱"], st:"※Vengeance、睡眠耐性、幻惑耐性、毒耐性、混乱耐性、魅了耐性、封技耐性"},
+  {name:"ビャッコ", race:"聖獣", level:43, res:["-","-","-","無","弱","-","-"], st:"混乱弱点"},
+  {name:"キマイラ", race:"聖獣", level:55, res:["-","耐","-","無","弱","-","-"], st:"毒弱点"},
+  {name:"マカミ", race:"神獣", level:21, res:["-","-","-","-","-","耐","弱"], st:"混乱弱点"},
+  {name:"アヌビス", race:"神獣", level:41, res:["-","-","-","-","弱","無","耐"], st:"封技耐性"},
+  {name:"バロン", race:"神獣", level:60, res:["-","-","-","無","弱","無","弱"], st:"毒耐性"},
+  {name:"ホウオウ", race:"霊鳥", level:22, res:["-","無","-","-","耐","-","弱"], st:"封技弱点"},
+  {name:"ジャターユ", race:"霊鳥", level:32, res:["-","-","-","弱","吸","-","弱"], st:"―"},
+  {name:"サンダーバード", race:"霊鳥", level:38, res:["-","-","-","無","弱","-","-"], st:"―"},
+  {name:"スザク", race:"霊鳥", level:43, res:["-","無","弱","-","-","-","-"], st:"魅了弱点"},
+  {name:"ヤタガラス", race:"霊鳥", level:54, res:["-","-","-","-","耐","無","弱"], st:"魅了弱点"},
+  {name:"ガルーダ", race:"霊鳥", level:64, res:["-","-","-","弱","吸","耐","-"], st:"封技耐性"},
+  {name:"オンモラキ", race:"凶鳥", level:4, res:["-","耐","弱","-","弱","-","-"], st:"幻惑弱点"},
+  {name:"チン", race:"凶鳥", level:14, res:["-","弱","-","-","-","-","耐"], st:"幻惑耐性、毒耐性"},
+  {name:"モー・ショボー", race:"凶鳥", level:38, res:["-","弱","-","-","無","-","-"], st:"―"},
+  {name:"アンズー", race:"凶鳥", level:48, res:["-","-","-","無","弱","-","-"], st:"睡眠弱点、封技耐性、幻惑無効"},
+  {name:"コダマ", race:"地霊", level:6, res:["-","弱","弱","-","耐","-","-"], st:"―"},
+  {name:"ツチグモ", race:"地霊", level:13, res:["-","-","弱","耐","-","-","-"], st:"魅力弱点、毒耐性"},
+  {name:"スダマ", race:"地霊", level:17, res:["-","弱","弱","-","無","-","-"], st:"睡眠弱点、混乱耐性"},
+  {name:"カヤノヒメ", race:"地霊", level:21, res:["-","弱","耐","-","-","-","-"], st:"毒弱点、睡眠耐性、魅了耐性"},
+  {name:"コロポックル", race:"地霊", level:26, res:["-","-","無","-","弱","耐","弱"], st:"毒耐性"},
+  {name:"カハク", race:"地霊", level:31, res:["-","無","弱","-","-","-","-"], st:"幻惑弱点"},
+  {name:"ナルキッソス", race:"地霊", level:38, res:["-","弱","-","-","無","-","-"], st:"混乱耐性、魅了無効"},
+  {name:"アーシーズ", race:"精霊", level:9, res:["-","-","-","耐","弱","-","-"], st:"―"},
+  {name:"エアロス", race:"精霊", level:12, res:["-","-","-","弱","耐","-","-"], st:"―"},
+  {name:"アクアンズ", race:"精霊", level:15, res:["-","弱","耐","-","-","-","-"], st:"―"},
+  {name:"フレイミーズ", race:"精霊", level:18, res:["-","耐","弱","-","-","-","-"], st:"―"},
+  {name:"マーメイド", race:"鬼女", level:12, res:["-","弱","無","弱","-","-","-"], st:"睡眠耐性"},
+  {name:"リャナンシー", race:"鬼女", level:17, res:["-","-","-","-","弱","弱","無"], st:"毒弱点"},
+  {name:"マナナンガル", race:"鬼女", level:25, res:["-","-","-","-","-","弱","無"], st:"幻惑耐性、魅了耐性"},
+  {name:"ヤクシニー", race:"鬼女", level:30, res:["-","-","-","弱","無","-","-"], st:"封技弱点"},
+  {name:"ラミア", race:"鬼女", level:36, res:["-","-","弱","無","-","-","-"], st:"幻惑弱点、毒耐性"},
+  {name:"ダーキニー", race:"鬼女", level:46, res:["耐","耐","弱","-","-","弱","-"], st:"封技無効"},
+  {name:"クロト", race:"鬼女", level:52, res:["-","無","弱","-","-","-","-"], st:"睡眠無効"},
+  {name:"ラケシス", race:"鬼女", level:58, res:["-","-","-","-","弱","-","-"], st:"全耐性"},
+  {name:"アトロポス", race:"鬼女", level:64, res:["-","弱","耐","-","-","無","-"], st:"―"},
+  {name:"ランダ", race:"鬼女", level:70, res:["反","弱","-","弱","-","弱","-"], st:"睡眠弱点"},
+  {name:"カーリー", race:"鬼女", level:76, res:["-","無","弱","-","弱","耐","反"], st:"―"},
+  {name:"ザントマン", race:"夜魔", level:8, res:["-","-","-","弱","耐","-","-"], st:"睡眠無効"},
+  {name:"モコイ", race:"夜魔", level:16, res:["-","-","-","耐","弱","-","-"], st:"―"},
+  {name:"インキュバス", race:"夜魔", level:22, res:["-","-","-","弱","耐","-","-"], st:"睡眠耐性、魅了無効"},
+  {name:"リリム", race:"夜魔", level:32, res:["-","-","弱","無","-","-","-"], st:"睡眠耐性、魅了無効"},
+  {name:"サキュバス", race:"夜魔", level:38, res:["-","耐","無","-","-","弱","-"], st:"睡眠無効、魅了無効"},
+  {name:"ジャアクフロスト", race:"夜魔", level:44, res:["-","耐","無","-","-","弱","反"], st:"―"},
+  {name:"キウン", race:"夜魔", level:45, res:["-","-","-","-","-","弱","無"], st:"封技耐性"},
+  {name:"クイーンメイブ", race:"夜魔", level:56, res:["-","-","-","弱","無","-","-"], st:"毒弱点、睡眠耐性、魅了耐性"},
+  {name:"リリス", race:"女魔", level:72, res:["耐","-","-","耐","吸","弱","耐"], st:"幻惑耐性、毒耐性、睡眠無効、混乱無効、魅了無効、封技無効"},
+  {name:"クラマテング", race:"幻魔", level:39, res:["-","-","-","弱","無","-","-"], st:"魅了弱点、封技耐性"},
+  {name:"ハヌマーン", race:"幻魔", level:46, res:["-","-","-","弱","反","-","-"], st:"幻惑弱点"},
+  {name:"クー・フーリン", race:"幻魔", level:52, res:["耐","-","-","弱","無","-","-"], st:"封技耐性"},
+  {name:"フィン・マックール", race:"幻魔", level:71, res:["-","無","-","弱","-","無","-"], st:"睡眠無効、封技無効"},
+  {name:"アマノザコ", race:"幻魔", level:76, res:["-","弱","弱","反","無","耐","無"], st:"―"},
+  {name:"ガキ", race:"幽鬼", level:3, res:["-","弱","-","-","弱","弱","耐"], st:"―"},
+  {name:"オバリヨン", race:"幽鬼", level:12, res:["-","-","弱","耐","-","弱","耐"], st:"―"},
+  {name:"ポルターガイスト", race:"幽鬼", level:25, res:["-","-","-","無","弱","弱","-"], st:"混乱無効"},
+  {name:"ピシャーチャ", race:"幽鬼", level:31, res:["-","弱","-","-","-","弱","無"], st:"―"},
+  {name:"クバンダ", race:"幽鬼", level:41, res:["-","-","-","弱","無","-","耐"], st:"幻惑弱点、毒耐性、混乱耐性、魅了耐性"},
+  {name:"スライム", race:"外道", level:1, res:["-","弱","弱","弱","弱","弱","-"], st:"毒耐性"},
+  {name:"レギオン", race:"外道", level:19, res:["-","-","-","弱","-","弱","無"], st:"―"},
+  {name:"ブラックウーズ", race:"外道", level:33, res:["耐","弱","-","-","-","弱","-"], st:"幻惑弱点、混乱弱点、魅了弱点"},
+  {name:"トート", race:"魔神", level:33, res:["-","無","-","-","-","-","弱"], st:"睡眠耐性"},
+  {name:"ホルス", race:"魔神", level:42, res:["-","耐","-","耐","弱","反","弱"], st:"―"},
+  {name:"アタバク", race:"魔神", level:54, res:["-","-","弱","-","-","無","無"], st:"封技弱点"},
+  {name:"コンス", race:"魔神", level:62, res:["-","耐","弱","-","-","無","-"], st:"―"},
+  {name:"ミトラ", race:"魔神", level:65, res:["-","-","弱","-","-","無","耐"], st:"―"},
+  {name:"オーディン", race:"魔神", level:77, res:["-","-","-","反","弱","無","無"], st:"幻惑耐性"},
+  {name:"コンス・ラー", race:"魔神", level:78, res:["-","無","弱","耐","耐","吸","-"], st:"封技無効"},
+  {name:"ゼウス", race:"魔神", level:86, res:["-","-","-","無","弱","無","無"], st:"封技耐性"},
+  {name:"ヴィシュヌ", race:"魔神", level:87, res:["無","弱","-","-","-","反","無"], st:"―"},
+  {name:"バアル", race:"魔神", level:93, res:["-","耐","弱","反","耐","無","-"], st:"―"},
+  {name:"キングフロスト", race:"魔王", level:33, res:["-","弱","吸","-","-","耐","弱"], st:"―"},
+  {name:"ベルフェゴール", race:"魔王", level:44, res:["耐","弱","無","耐","-","弱","無"], st:"―"},
+  {name:"モロク", race:"魔王", level:51, res:["-","無","弱","耐","-","-","耐"], st:"―"},
+  {name:"スルト", race:"魔王", level:62, res:["-","吸","弱","-","-","-","-"], st:"―"},
+  {name:"マーラ", race:"魔王", level:67, res:["-","-","弱","吸","-","耐","耐"], st:"魅了無効"},
+  {name:"アバドン", race:"魔王", level:72, res:["-","無","-","弱","-","-","耐"], st:"封技弱点、幻惑耐性"},
+  {name:"アリオク", race:"魔王", level:75, res:["-","-","反","弱","耐","-","耐"], st:"―"},
+  {name:"ミトラス", race:"魔王", level:77, res:["-","吸","弱","-","-","無","-"], st:"―"},
+  {name:"メフィスト", race:"魔王", level:79, res:["無","-","-","-","-","弱","吸"], st:"―"},
+  {name:"アモン", race:"魔王", level:82, res:["耐","吸","弱","-","-","耐","耐"], st:"―"},
+  {name:"シュウ", race:"魔王", level:87, res:["-","弱","無","弱","反","-","-"], st:"―"},
+  {name:"ベリアル", race:"魔王", level:92, res:["-","無","弱","-","無","-","無"], st:"―"},
+  {name:"ベルゼブブ", race:"魔王", level:95, res:["-","-","耐","吸","弱","耐","無"], st:"睡眠無効、幻惑無効、毒無効、混乱無効"},
+  {name:"ケットシー", race:"魔獣", level:7, res:["-","-","-","耐","弱","-","-"], st:"―"},
+  {name:"イヌガミ", race:"魔獣", level:24, res:["-","無","弱","-","-","弱","耐"], st:"―"},
+  {name:"ネコマタ", race:"魔獣", level:34, res:["-","耐","弱","弱","無","-","-"], st:"魅了耐性"},
+  {name:"オルトロス", race:"魔獣", level:42, res:["-","無","弱","-","-","-","耐"], st:"毒弱点、混乱耐性"},
+  {name:"オロバス", race:"魔獣", level:49, res:["-","耐","弱","-","-","-","耐"], st:"混乱無効"},
+  {name:"ルー・ガルー", race:"魔獣", level:54, res:["-","耐","弱","無","-","弱","-"], st:"―"},
+  {name:"ケルベロス", race:"魔獣", level:64, res:["-","反","弱","-","-","-","-"], st:"封技耐性"},
+  {name:"グラシャラボラス", race:"魔獣", level:59, res:["-","-","-","弱","無","-","無"], st:"幻惑無効"},
+  {name:"ロキ", race:"魔王", level:56, res:["-","-","無","-","耐","弱","耐"], st:"毒弱点、魅了耐性"},
+  {name:"ダグザ", race:"魔神", level:80, res:["-","無","無","無","無","弱","-"], st:"―"},
+  {name:"リリス（無印のみ）", race:"夜魔", level:68, res:["-","耐","耐","耐","弱","-","耐"], st:"―"},
+  {name:"アナンシ", race:"幻魔", level:49, res:["-","弱","無","-","-","-","耐"], st:"―"},
+  {name:"クルースニク", race:"幻魔", level:60, res:["耐","-","-","-","弱","無","-"], st:"―"},
+  {name:"ナアマ", race:"女魔", level:63, res:["弱","耐","耐","耐","耐","-","無"], st:"全耐性"},
+  {name:"エイシェト", race:"女魔", level:66, res:["-","無","-","-","弱","-","無"], st:"全耐性"},
+  {name:"アグラト", race:"女魔", level:68, res:["-","耐","無","弱","-","-","耐"], st:"全耐性"},
+  {name:"ナホビホ", race:"妖精", level:65, res:["耐","-","吸","無","弱","耐","-"], st:"―"},
+  {name:"ピアレイ", race:"妖獣", level:8, res:["-","弱","耐","-","-","弱","耐"], st:"―"},
+  {name:"ドアマース", race:"妖獣", level:40, res:["-","-","-","-","弱","耐","無"], st:"幻惑耐性、毒耐性、混乱耐性、魅了耐性"},
+  {name:"フェンリル", race:"妖獣", level:65, res:["-","-","吸","-","弱","-","-"], st:"封技耐性"},
+  {name:"ディース", race:"妖魔", level:31, res:["弱","耐","耐","耐","耐","-","-"], st:"封技無効"},
+  {name:"イフリート", race:"妖魔", level:52, res:["-","吸","弱","-","-","-","-"], st:"―"},
+  {name:"カラステング", race:"妖鬼", level:35, res:["-","-","-","弱","耐","耐","-"], st:"―"},
+  {name:"クドラク", race:"幽鬼", level:60, res:["-","弱","-","-","-","-","吸"], st:"―"},
+  {name:"マリシテン", race:"鬼神", level:78, res:["耐","無","耐","耐","-","反","弱"], st:"毒弱点、混乱弱点、幻惑無効"},
+  {name:"グレムリン", race:"邪鬼", level:5, res:["-","弱","耐","耐","弱","-","-"], st:"―"},
+  {name:"ロア", race:"邪鬼", level:30, res:["-","-","-","-","-","弱","無"], st:"毒無効"},
+  {name:"ツィツィミトル", race:"邪神", level:75, res:["-","弱","-","-","-","無","無"], st:"幻惑弱点、混乱弱点、封技無効"},
+  {name:"サトゥルヌス", race:"邪神", level:88, res:["-","吸","弱","-","-","無","耐"], st:"―"},
+  {name:"チョトンダ", race:"邪龍", level:9, res:["-","-","耐","-","-","-","弱"], st:"毒無効"},
+  {name:"サマエル", race:"邪龍", level:92, res:["-","-","弱","-","-","反","反"], st:"幻惑無効、毒無効、ティアマト"},
+  {name:"ノズチ", race:"龍王", level:15, res:["耐","弱","弱","弱","-","-","-"], st:"毒耐性"},
+  {name:"ヴィーヴル", race:"龍王", level:20, res:["-","-","弱","-","-","-","-"], st:"睡眠耐性、封技耐性、毒無効"},
+  {name:"ニャミニャミ", race:"龍神", level:13, res:["-","弱","無","弱","-","-","-"], st:"幻惑耐性"},
+  {name:"ヴリトラ", race:"龍神", level:52, res:["-","-","耐","無","弱","耐","-"], st:"―"},
+  {name:"ネコショウグン", race:"軍神", level:5, res:["-","弱","-","無","弱","耐","-"], st:"幻惑耐性、毒耐性、混乱耐性"},
+  {name:"ナタタイシ", race:"軍神", level:28, res:["-","耐","-","弱","耐","-","-"], st:"―"},
+  {name:"ヨシツネ", race:"軍神", level:45, res:["耐","-","-","-","-","-","弱"], st:"睡眠弱点、毒弱点、幻惑無効"},
+  {name:"ガネーシャ", race:"軍神", level:57, res:["耐","-","-","弱","無","-","弱"], st:"毒弱点、混乱耐性"},
+  {name:"ジークフリート", race:"軍神", level:63, res:["吸","-","-","-","弱","弱","弱"], st:"―"},
+  {name:"フツヌシ", race:"軍神", level:69, res:["-","-","-","-","-","無","弱"], st:"睡眠弱点、封技耐性、幻惑無効、混乱無効"},
+  {name:"マサカド", race:"軍神", level:94, res:["耐","-","-","-","-","無","無"], st:"睡眠弱点、幻惑弱点"},
+  {name:"コノハナサクヤ", race:"国津神", level:50, res:["-","反","-","弱","無","-","-"], st:"混乱耐性、魅了耐性、封技耐性"},
+  {name:"アマビエ", race:"秘神", level:39, res:["-","-","無","-","-","耐","弱"], st:"―"},
+  {name:"オニャンコポン", race:"秘神", level:50, res:["弱","無","-","無","-","無","-"], st:"―"},
+  {name:"キンマモン", race:"秘神", level:69, res:["-","無","-","弱","弱","無","無"], st:"睡眠耐性、混乱耐性、魅了耐性"},
+  {name:"カイチ", race:"神獣", level:29, res:["-","-","無","-","-","無","弱"], st:"睡眠弱点、幻惑弱点、毒弱点、混乱弱点、魅了弱点、封技弱点"},
+  {name:"ユニコーン", race:"聖獣", level:11, res:["-","-","-","弱","-","無","-"], st:"幻惑弱点、毒弱点、混乱耐性、魅了耐性"},
+  {name:"センリ", race:"聖獣", level:43, res:["-","-","-","弱","耐","無","-"], st:"魅了無効"},
+  {name:"イナバシロウサギ", race:"珍獣", level:31, res:["-","弱","弱","弱","-","無","無"], st:"―"},
+  {name:"ケルプ", race:"天使", level:71, res:["-","-","-","-","吸","耐","弱"], st:"封技弱点"},
+  {name:"アールマティ", race:"大天使", level:53, res:["-","-","-","弱","弱","無","無"], st:"全耐性"},
+  {name:"アブディエル", race:"堕天使", level:89, res:["-","-","耐","耐","耐","弱","反"], st:"混乱無効"},
+  {name:"マンセマット", race:"大天使", level:83, res:["-","弱","反","-","反","無","-"], st:"―"},
+  {name:"ハルパス", race:"堕天使", level:11, res:["-","-","-","弱","-","耐","耐"], st:"―"},
+  {name:"アザゼル", race:"堕天使", level:61, res:["-","無","-","弱","無","弱","耐"], st:"―"},
+  {name:"ゴグマゴグ", race:"地霊", level:61, res:["無","弱","無","-","弱","-","弱"], st:"混乱弱点、封技弱点"},
+  {name:"グルル", race:"凶鳥", level:68, res:["-","-","-","-","無","弱","-"], st:"睡眠耐性、幻惑耐性、毒耐性"},
+  {name:"ターボばあちゃん", race:"外道", level:26, res:["-","-","-","-","-","弱","無"], st:"―"},
+  {name:"マッドガッサー", race:"外道", level:48, res:["-","-","-","-","-","弱","無"], st:"混乱弱点、魅了弱点、封技弱点、睡眠無効、幻惑無効、毒無効"}
+];
+
+// ========================================
+// 設定
+// ========================================
+const STORAGE_KEY = "smt5v_complete";
+const EXTRA_KEY   = "smt5v_extra";
+const listEl      = document.getElementById("list");
+const searchEl    = document.getElementById("search");
+const raceFilterEl= document.getElementById("raceFilter");
+const sortModeEl  = document.getElementById("sortMode");
+const statsNumEl  = document.getElementById("stats-num");
+const progressEl  = document.getElementById("progress");
+const emptyEl     = document.getElementById("empty");
+
+let uncheckedOnly = false;
+let prevPercent   = -1;
+
+// ========================================
+// localStorage
+// ========================================
+function getChecks(){ return JSON.parse(localStorage.getItem(STORAGE_KEY)||"{}"); }
+function saveChecks(d){ localStorage.setItem(STORAGE_KEY,JSON.stringify(d)); }
+function getExtra(){ return JSON.parse(localStorage.getItem(EXTRA_KEY)||"[]"); }
+function saveExtra(d){ localStorage.setItem(EXTRA_KEY, JSON.stringify(d)); }
+
+// ========================================
+// 追加済みデータを復元
+// ========================================
+function loadExtra(){
+  getExtra().forEach(d=>{
+    if(!demons.find(x=>x.name===d.name)) demons.push(d);
+  });
+}
+
+// ========================================
+// チェック切替
+// ========================================
+function toggleCheck(name){
+  const c = getChecks();
+  c[name] = !c[name];
+  saveChecks(c);
+  render();
+}
+
+// ========================================
+// 全解除
+// ========================================
+function resetChecks(){
+  if(confirm("全チェックを解除しますか？")){
+    localStorage.removeItem(STORAGE_KEY);
+    render();
+  }
+}
+
+// ========================================
+// 種族フィルター初期化
+// ========================================
+const RACE_ORDER = [
+  "魔神","魔王","魔獣","魔人",
+  "妖魔","妖鬼","妖獣","妖精",
+  "天使","大天使","堕天使","龍王",
+  "龍神","邪鬼","邪龍","邪神",
+  "女神","地母神","破壊神","鬼神",
+  "国津神","聖獣","神獣","霊鳥",
+  "凶鳥","地霊","精霊","鬼女",
+  "夜魔","幻魔","幽鬼","外道"
+];
+
+function buildRaceOptions(selectEl, skipFirst=false){
+  const existing = new Set(demons.map(d=>d.race));
+  if(!skipFirst) { while(selectEl.options.length>1) selectEl.remove(1); }
+  RACE_ORDER.filter(r=>existing.has(r)).forEach(r=>{
+    const o = document.createElement("option");
+    o.value = r; o.textContent = r;
+    selectEl.appendChild(o);
+    existing.delete(r);
+  });
+  [...existing].sort((a,b)=>a.localeCompare(b,'ja')).forEach(r=>{
+    const o = document.createElement("option");
+    o.value = r; o.textContent = r;
+    selectEl.appendChild(o);
+  });
+}
+
+function initRaceFilter(){
+  buildRaceOptions(raceFilterEl);
+  buildRaceOptions(document.getElementById("addRace"));
+}
+
+// ========================================
+// Lvクラス
+// ========================================
+function lvClass(level){
+  if(level >= 90) return "lv-max";
+  if(level >= 60) return "lv-hi";
+  if(level >= 30) return "lv-mid";
+  return "lv-low";
+}
+
+// ========================================
+// 描画
+// ========================================
+function render(){
+  const checks = getChecks();
+  const uniqueNames = [...new Set(demons.map(d=>d.name))];
+  const checkedCount = uniqueNames.filter(n=>checks[n]).length;
+
+  const q = searchEl.value.trim().toLowerCase();
+  const resV = document.getElementById("resFilter").value;
+  let resIdx = -1, resVal = "";
+  if(resV){ const p=resV.split("_"); resIdx=parseInt(p[0]); resVal=p[1]; }
+
+  let filtered = demons.filter(d=>
+    (!q || d.name.toLowerCase().includes(q)) &&
+    (!raceFilterEl.value || d.race===raceFilterEl.value) &&
+    (!uncheckedOnly || !checks[d.name]) &&
+    (resIdx<0 || (d.res && d.res[resIdx]===resVal))
+  );
+
+  switch(sortModeEl.value){
+    case "levelAsc":  filtered.sort((a,b)=>a.level-b.level||a.name.localeCompare(b.name,"ja")); break;
+    case "levelDesc": filtered.sort((a,b)=>b.level-a.level||a.name.localeCompare(b.name,"ja")); break;
+    case "name":      filtered.sort((a,b)=>a.name.localeCompare(b.name,"ja")); break;
+    case "race":      filtered.sort((a,b)=>a.race.localeCompare(b.race,"ja")||a.level-b.level); break;
+  }
+
+  listEl.innerHTML = "";
+  listEl.appendChild(emptyEl);
+  emptyEl.style.display = filtered.length ? "none" : "block";
+
+  // フィルターリセットボタン表示制御
+  const isFiltered = q || raceFilterEl.value || document.getElementById("resFilter").value;
+  document.getElementById("filterResetBtn").style.display = isFiltered ? "inline-block" : "none";
+
+  filtered.forEach((d,i)=>{
+    const checked = !!checks[d.name];
+    const card = document.createElement("div");
+    card.className = `card ${lvClass(d.level)}${checked?" checked":""}`;
+    card.style.animationDelay = `${Math.min(i,30)*10}ms`;
+
+    const resHTML = buildResHTML(d.res);
+    const stHTML  = (d.st && d.st!=="―") ? `<div class="row-st">⚡${d.st}</div>` : "";
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="cb-wrap">
+          <input type="checkbox" ${checked?"checked":""}>
+          <div class="cb-box"></div>
+        </div>
+        <div class="info">
+          <div class="name">${d.name}</div>
+          <div class="meta">
+            <span class="lv-label">Lv.${d.level}</span>
+            <span class="race-badge">${d.race}</span>
+          </div>
+        </div>
+      </div>
+      ${resHTML}
+      ${stHTML}
+    `;
+
+    card.querySelector("input").addEventListener("change",()=>toggleCheck(d.name));
+    card.addEventListener("click",e=>{ if(e.target.tagName==="INPUT") return; toggleCheck(d.name); });
+    listEl.appendChild(card);
+  });
+
+  const total   = uniqueNames.length;
+  const percent = total ? Math.floor(checkedCount/total*100) : 0;
+  statsNumEl.textContent = `取得 ${checkedCount} / ${total}（${percent}%）`;
+  progressEl.style.width = percent + "%";
+
+  if(percent===100 && prevPercent!==100){
+    setTimeout(()=>document.getElementById("completeOverlay").classList.add("show"),400);
+  }
+  prevPercent = percent;
+}
+
+// ========================================
+// 未取得ボタン
+// ========================================
+document.getElementById("uncheckedBtn").addEventListener("click",function(){
+  uncheckedOnly = !uncheckedOnly;
+  this.classList.toggle("active", uncheckedOnly);
+  this.textContent = uncheckedOnly ? "全表示" : "未取得のみ";
+  render();
+});
+
+// ========================================
+// トップへ戻る
+// ========================================
+const topBtn = document.getElementById("topBtn");
+window.addEventListener("scroll",()=>topBtn.classList.toggle("show",window.scrollY>300),{passive:true});
+topBtn.addEventListener("click",()=>window.scrollTo({top:0,behavior:"smooth"}));
+
+// ========================================
+// イベント
+// ========================================
+searchEl.addEventListener("input", render);
+raceFilterEl.addEventListener("change", render);
+document.getElementById("resFilter").addEventListener("change", render);
+
+// フィルターリセット
+document.getElementById("filterResetBtn").addEventListener("click", () => {
+  document.getElementById("search").value = "";
+  raceFilterEl.value = "";
+  document.getElementById("resFilter").value = "";
+  sortModeEl.value = "levelAsc";
+  render();
+});
+sortModeEl.addEventListener("change", render);
+
+// ========================================
+// 悪魔追加フォーム（一番下に追加）
+// ========================================
+document.getElementById("addDemonBtn").addEventListener("click",()=>{
+  const name  = document.getElementById("addName").value.trim();
+  const race  = document.getElementById("addRace").value.trim();
+  const level = parseInt(document.getElementById("addLevel").value);
+  const msg   = document.getElementById("addMsg");
+
+  if(!name){ msg.style.color="var(--red)"; msg.textContent="悪魔名を入力してください"; return; }
+  if(!race){ msg.style.color="var(--red)"; msg.textContent="種族を入力してください"; return; }
+  if(!level||level<1||level>99){ msg.style.color="var(--red)"; msg.textContent="レベルを1〜99で入力してください"; return; }
+  if(demons.find(d=>d.name===name)){ msg.style.color="var(--red)"; msg.textContent=`「${name}」はすでに登録済みです`; return; }
+
+  const newDemon = {name, race, level};
+  demons.push(newDemon);           // 末尾に追加
+
+  const extra = getExtra();
+  extra.push(newDemon);
+  saveExtra(extra);
+
+  // 種族フィルター・追加フォームのselectを再構築
+  if(![...raceFilterEl.options].find(o=>o.value===race)){
+    buildRaceOptions(raceFilterEl);
+    buildRaceOptions(document.getElementById("addRace"));
+  }
+
+  document.getElementById("addName").value  = "";
+  document.getElementById("addRace").selectedIndex = 0;
+  document.getElementById("addLevel").value = "";
+
+  msg.style.color="var(--green)";
+  msg.textContent=`「${name}」を追加しました！`;
+  setTimeout(()=>msg.textContent="",3000);
+
+  render();
+});
+
+// ========================================
+// 初期化
+// ========================================
+loadExtra();
+initRaceFilter();
+render();
+</script>
+</body>
+</html>
