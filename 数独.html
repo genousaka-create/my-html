@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>高機能 数独ゲーム</title>
+
+<style>
+  body{
+    font-family:sans-serif;
+    background:#f4f4f4;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin:20px;
+  }
+
+  h1{
+    margin-bottom:10px;
+  }
+
+  #timer{
+    font-size:24px;
+    font-weight:bold;
+    margin-bottom:15px;
+  }
+
+  #topControls{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    margin-bottom:15px;
+    flex-wrap:wrap;
+  }
+
+  select,button{
+    padding:8px 12px;
+    font-size:16px;
+    cursor:pointer;
+  }
+
+  #board{
+    display:grid;
+    grid-template-columns:repeat(9,60px);
+    grid-template-rows:repeat(9,60px);
+    border:4px solid #333;
+  }
+
+  .cell{
+    position:relative;
+    width:60px;
+    height:60px;
+    border:1px solid #999;
+    background:white;
+    box-sizing:border-box;
+    cursor:pointer;
+    user-select:none;
+  }
+
+  .fixed{
+    background:#ddd;
+  }
+
+  .selected{
+    background:#bfe3ff !important;
+  }
+
+  .hint{
+    background:#fff3a3;
+  }
+
+  .main-number{
+    position:absolute;
+    inset:0;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:28px;
+    font-weight:bold;
+  }
+
+  .notes{
+    position:absolute;
+    inset:2px;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(3,1fr);
+    font-size:11px;
+    color:#666;
+  }
+
+  .note{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .cell:nth-child(3n){
+    border-right:3px solid #333;
+  }
+
+  .cell:nth-child(n+19):nth-child(-n+27),
+  .cell:nth-child(n+46):nth-child(-n+54){
+    border-bottom:3px solid #333;
+  }
+
+  #numberPad{
+    margin-top:20px;
+    display:grid;
+    grid-template-columns:repeat(5,60px);
+    gap:10px;
+  }
+
+  .num-btn{
+    width:60px;
+    height:60px;
+    font-size:22px;
+    border:none;
+    border-radius:10px;
+    background:white;
+    box-shadow:0 2px 5px rgba(0,0,0,0.2);
+  }
+
+  .num-btn:hover{
+    background:#dff4ff;
+  }
+
+  #message{
+    margin-top:15px;
+    font-size:18px;
+    font-weight:bold;
+  }
+
+  .active-mode{
+    background:#7ec8ff;
+    color:white;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>高機能 数独ゲーム</h1>
+
+<div id="timer">
+  ⏱ 00:00
+</div>
+
+<div id="topControls">
+
+  <label>難易度:</label>
+
+  <select id="difficulty">
+    <option value="easy">かんたん</option>
+    <option value="normal">ふつう</option>
+    <option value="hard">むずかしい</option>
+  </select>
+
+  <button onclick="startGame()">
+    新しいゲーム
+  </button>
+
+  <button id="noteModeBtn" onclick="toggleNoteMode()">
+    候補モード OFF
+  </button>
+
+</div>
+
+<div id="board"></div>
+
+<div id="numberPad"></div>
+
+<div style="margin-top:20px;">
+  <button onclick="checkAnswer()">チェック</button>
+  <button onclick="resetBoard()">リセット</button>
+  <button onclick="giveHint()">ヒント</button>
+</div>
+
+<div id="message"></div>
+
+<script>
+
+const solution = [
+  [5,3,4,6,7,8,9,1,2],
+  [6,7,2,1,9,5,3,4,8],
+  [1,9,8,3,4,2,5,6,7],
+  [8,5,9,7,6,1,4,2,3],
+  [4,2,6,8,5,3,7,9,1],
+  [7,1,3,9,2,4,8,5,6],
+  [9,6,1,5,3,7,2,8,4],
+  [2,8,7,4,1,9,6,3,5],
+  [3,4,5,2,8,6,1,7,9]
+];
+
+let puzzle = [];
+
+const board = document.getElementById("board");
+const numberPad = document.getElementById("numberPad");
+
+let selectedCell = null;
+let noteMode = false;
+
+let timerInterval;
+let seconds = 0;
+
+function updateTimer(){
+
+  const min =
+    String(Math.floor(seconds / 60))
+      .padStart(2,"0");
+
+  const sec =
+    String(seconds % 60)
+      .padStart(2,"0");
+
+  document.getElementById("timer")
+    .textContent = `⏱ ${min}:${sec}`;
+}
+
+function startTimer(){
+
+  clearInterval(timerInterval);
+
+  seconds = 0;
+
+  updateTimer();
+
+  timerInterval = setInterval(()=>{
+
+    seconds++;
+
+    updateTimer();
+
+  },1000);
+}
+
+function stopTimer(){
+
+  clearInterval(timerInterval);
+}
+
+function createPuzzle(level){
+
+  puzzle = solution.map(row => [...row]);
+
+  let removeCount = 30;
+
+  if(level === "normal"){
+    removeCount = 45;
+  }
+
+  if(level === "hard"){
+    removeCount = 60;
+  }
+
+  let removed = 0;
+
+  while(removed < removeCount){
+
+    const row = Math.floor(Math.random()*9);
+    const col = Math.floor(Math.random()*9);
+
+    if(puzzle[row][col] !== 0){
+
+      puzzle[row][col] = 0;
+      removed++;
+    }
+  }
+}
+
+function createCell(row,col,value){
+
+  const cell = document.createElement("div");
+
+  cell.classList.add("cell");
+
+  cell.dataset.row = row;
+  cell.dataset.col = col;
+
+  const main = document.createElement("div");
+  main.classList.add("main-number");
+
+  const notes = document.createElement("div");
+  notes.classList.add("notes");
+
+  for(let i=1;i<=9;i++){
+
+    const n = document.createElement("div");
+
+    n.classList.add("note");
+
+    n.dataset.note = i;
+
+    notes.appendChild(n);
+  }
+
+  cell.appendChild(notes);
+  cell.appendChild(main);
+
+  if(value !== 0){
+
+    main.textContent = value;
+
+    cell.classList.add("fixed");
+
+  }else{
+
+    cell.addEventListener("click",()=>{
+
+      document.querySelectorAll(".cell")
+        .forEach(c=>c.classList.remove("selected"));
+
+      cell.classList.add("selected");
+
+      selectedCell = cell;
+    });
+  }
+
+  return cell;
+}
+
+function createBoard(){
+
+  board.innerHTML = "";
+
+  for(let row=0;row<9;row++){
+
+    for(let col=0;col<9;col++){
+
+      const cell =
+        createCell(row,col,puzzle[row][col]);
+
+      board.appendChild(cell);
+    }
+  }
+}
+
+function createNumberPad(){
+
+  numberPad.innerHTML = "";
+
+  for(let i=1;i<=9;i++){
+
+    const btn = document.createElement("button");
+
+    btn.textContent = i;
+
+    btn.classList.add("num-btn");
+
+    btn.addEventListener("click",()=>{
+
+      if(!selectedCell) return;
+
+      if(selectedCell.classList.contains("fixed"))
+        return;
+
+      const main =
+        selectedCell.querySelector(".main-number");
+
+      const notes =
+        selectedCell.querySelectorAll(".note");
+
+      if(noteMode){
+
+        if(main.textContent !== "") return;
+
+        const target =
+          selectedCell.querySelector(
+            `[data-note="${i}"]`
+          );
+
+        target.textContent =
+          target.textContent === "" ? i : "";
+
+      }else{
+
+        main.textContent = i;
+
+        notes.forEach(n=>n.textContent="");
+      }
+    });
+
+    numberPad.appendChild(btn);
+  }
+
+  const clearBtn = document.createElement("button");
+
+  clearBtn.textContent = "×";
+
+  clearBtn.classList.add("num-btn");
+
+  clearBtn.addEventListener("click",()=>{
+
+    if(!selectedCell) return;
+
+    if(selectedCell.classList.contains("fixed"))
+      return;
+
+    const main =
+      selectedCell.querySelector(".main-number");
+
+    const notes =
+      selectedCell.querySelectorAll(".note");
+
+    if(noteMode){
+
+      notes.forEach(n=>n.textContent="");
+
+    }else{
+
+      main.textContent = "";
+
+      notes.forEach(n=>n.textContent="");
+    }
+  });
+
+  numberPad.appendChild(clearBtn);
+}
+
+function toggleNoteMode(){
+
+  noteMode = !noteMode;
+
+  const btn =
+    document.getElementById("noteModeBtn");
+
+  if(noteMode){
+
+    btn.textContent = "候補モード ON";
+    btn.classList.add("active-mode");
+
+  }else{
+
+    btn.textContent = "候補モード OFF";
+    btn.classList.remove("active-mode");
+  }
+}
+
+function giveHint(){
+
+  const cells =
+    document.querySelectorAll(".cell");
+
+  const emptyCells = [];
+
+  cells.forEach(cell=>{
+
+    if(cell.classList.contains("fixed"))
+      return;
+
+    const main =
+      cell.querySelector(".main-number");
+
+    if(main.textContent === ""){
+
+      emptyCells.push(cell);
+    }
+  });
+
+  if(emptyCells.length === 0){
+
+    document.getElementById("message")
+      .textContent = "空きマスがありません";
+
+    return;
+  }
+
+  const target =
+    emptyCells[
+      Math.floor(Math.random()*emptyCells.length)
+    ];
+
+  const row = Number(target.dataset.row);
+  const col = Number(target.dataset.col);
+
+  const answer = solution[row][col];
+
+  const main =
+    target.querySelector(".main-number");
+
+  main.textContent = answer;
+
+  const notes =
+    target.querySelectorAll(".note");
+
+  notes.forEach(n=>n.textContent="");
+
+  target.classList.add("hint");
+
+  document.getElementById("message")
+    .textContent = "ヒントを表示しました";
+}
+
+function checkAnswer(){
+
+  const cells =
+    document.querySelectorAll(".cell");
+
+  let correct = true;
+
+  cells.forEach(cell=>{
+
+    const row = cell.dataset.row;
+    const col = cell.dataset.col;
+
+    const value =
+      Number(
+        cell.querySelector(".main-number")
+          .textContent
+      );
+
+    if(value !== solution[row][col]){
+      correct = false;
+    }
+  });
+
+  const message =
+    document.getElementById("message");
+
+  if(correct){
+
+    stopTimer();
+
+    message.textContent =
+      `クリア！ タイム: ${
+        document.getElementById("timer").textContent
+      }`;
+
+    message.style.color = "green";
+
+  }else{
+
+    message.textContent =
+      "まだ間違いがあります";
+
+    message.style.color = "red";
+  }
+}
+
+function resetBoard(){
+
+  createBoard();
+
+  document.getElementById("message")
+    .textContent = "";
+
+  selectedCell = null;
+
+  startTimer();
+}
+
+function startGame(){
+
+  const level =
+    document.getElementById("difficulty").value;
+
+  createPuzzle(level);
+
+  createBoard();
+
+  document.getElementById("message")
+    .textContent = "";
+
+  selectedCell = null;
+
+  startTimer();
+}
+
+createNumberPad();
+startGame();
+
+</script>
+
+</body>
+</html>
