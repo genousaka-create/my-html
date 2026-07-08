@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="マインスイーパー">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a1a2e">
+<title>マインスイーパー</title>
+<style>
+  :root{
+    --bg:#1a1a2e;
+    --panel:#232342;
+    --panel-2:#2b2b52;
+    --cell-hidden:#3a3a63;
+    --cell-hidden-active:#454578;
+    --cell-revealed:#161628;
+    --border:#12122080;
+    --accent:#6c8cff;
+    --danger:#ff5c5c;
+    --danger-fill:#e03131;
+    --success:#3ddc97;
+    --text:#eef0ff;
+    --text-muted:#9a9ac0;
+    --flag:#ff5c5c;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Sans","Noto Sans JP",sans-serif;
+    overscroll-behavior:none;
+    touch-action:manipulation;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  #app{
+    min-height:100dvh;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(20px, env(safe-area-inset-bottom));
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  h1{
+    font-size:18px;
+    font-weight:700;
+    margin: 4px 0 14px;
+    letter-spacing:0.02em;
+  }
+  .bar{
+    width:100%;
+    max-width:480px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:10px;
+    flex-wrap:wrap;
+  }
+  select, button{
+    font-family:inherit;
+    font-size:14px;
+    border:none;
+    border-radius:10px;
+    padding:9px 12px;
+    background:var(--panel);
+    color:var(--text);
+  }
+  select{
+    background:var(--panel);
+    border:1px solid #3a3a63;
+  }
+  button{
+    background:var(--panel-2);
+    font-weight:600;
+    cursor:pointer;
+  }
+  button:active{ transform:scale(0.96); }
+  #retryBtn{
+    background:var(--danger-fill);
+    color:#fff;
+    display:none;
+  }
+  #flagModeBtn.active{
+    background:var(--flag);
+    color:#1a1a2e;
+  }
+  .stats{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-left:auto;
+    font-variant-numeric:tabular-nums;
+  }
+  .stat{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    font-size:14px;
+    font-weight:600;
+  }
+  #status{
+    width:100%;
+    max-width:480px;
+    min-height:20px;
+    font-size:13px;
+    color:var(--text-muted);
+    margin-bottom:10px;
+    text-align:center;
+  }
+  #status.win{ color:var(--success); font-weight:700; }
+  #status.lose{ color:var(--danger); font-weight:700; }
+  #board{
+    display:inline-grid;
+    gap:2px;
+    background:var(--border);
+    border-radius:8px;
+    padding:2px;
+    max-width:100%;
+    max-height:70dvh;
+    overflow:auto;
+    touch-action:manipulation;
+  }
+  .cell{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:3px;
+    font-weight:700;
+    background:var(--cell-hidden);
+  }
+  .cell.revealed{
+    background:var(--cell-revealed);
+  }
+  .cell.exploded{
+    background:var(--danger-fill);
+  }
+  .cell.other-mine{
+    background:var(--cell-revealed);
+    color:var(--text-muted);
+  }
+  .footer-hint{
+    margin-top:14px;
+    font-size:12px;
+    color:var(--text-muted);
+    text-align:center;
+    max-width:480px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>マインスイーパー</h1>
+  <div class="bar">
+    <select id="difficulty">
+      <option value="easy">初級 9x9 (10)</option>
+      <option value="medium" selected>中級 16x16 (40)</option>
+      <option value="hard">上級 16x30 (99)</option>
+    </select>
+    <button id="newGameBtn">新規</button>
+    <div class="stats">
+      <div class="stat">🚩 <span id="flagCount">0</span></div>
+      <div class="stat">⏱ <span id="timer">00:00</span></div>
+    </div>
+  </div>
+  <div class="bar" style="justify-content:center;">
+    <div id="status"></div>
+    <button id="retryBtn">🔁 もう一度</button>
+  </div>
+  <div class="bar" style="justify-content:center;">
+    <button id="flagModeBtn">🚩 フラグモード: オフ</button>
+  </div>
+  <div id="board"></div>
+  <div class="footer-hint">タップ: 開く / 長押し: フラグ / フラグモードONでタップだけで操作可</div>
+</div>
+
+<script>
+(function(){
+  const configs = {
+    easy: {rows:9, cols:9, mines:10},
+    medium: {rows:16, cols:16, mines:40},
+    hard: {rows:16, cols:30, mines:99}
+  };
+  let rows, cols, mines, grid, revealedCount, flagCount, gameOver, gameWon, firstClick, timerInterval, seconds, cellSize, explodedR, explodedC, flagMode;
+
+  const boardEl = document.getElementById('board');
+  const statusEl = document.getElementById('status');
+  const timerEl = document.getElementById('timer');
+  const flagCountEl = document.getElementById('flagCount');
+  const diffSel = document.getElementById('difficulty');
+  const newBtn = document.getElementById('newGameBtn');
+  const retryBtn = document.getElementById('retryBtn');
+  const flagModeBtn = document.getElementById('flagModeBtn');
+
+  const numColors = {1:'#6c8cff',2:'#3ddc97',3:'#ff5c5c',4:'#b39ddb',5:'#ff9d6c',6:'#4dd0e1',7:'#eef0ff',8:'#9a9ac0'};
+  let longPressTimer = null;
+  let longPressFired = false;
+
+  function updateRemainingMines(){
+    flagCountEl.textContent = mines - flagCount;
+  }
+
+  function formatTime(s){
+    const m = Math.floor(s/60);
+    const sec = s%60;
+    return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+  }
+
+  function computeCellSize(){
+    const maxWidth = Math.min(window.innerWidth - 28, 480);
+    const size = Math.floor((maxWidth - (cols+1)*2) / cols);
+    return Math.max(16, Math.min(34, size));
+  }
+
+  function initGame(){
+    const cfg = configs[diffSel.value];
+    rows = cfg.rows; cols = cfg.cols; mines = cfg.mines;
+    cellSize = computeCellSize();
+    grid = [];
+    for (let r=0;r<rows;r++){
+      const row = [];
+      for (let c=0;c<cols;c++){
+        row.push({mine:false, revealed:false, flagged:false, adj:0});
+      }
+      grid.push(row);
+    }
+    revealedCount = 0; flagCount = 0; gameOver = false; gameWon = false; firstClick = true;
+    explodedR = -1; explodedC = -1; flagMode = false;
+    seconds = 0;
+    clearInterval(timerInterval);
+    timerEl.textContent = formatTime(0);
+    updateRemainingMines();
+    statusEl.textContent = 'タップして開始';
+    statusEl.className = '';
+    retryBtn.style.display = 'none';
+    flagModeBtn.textContent = '🚩 フラグモード: オフ';
+    flagModeBtn.classList.remove('active');
+    render();
+  }
+
+  function placeMines(excludeR, excludeC){
+    let placed = 0;
+    while(placed < mines){
+      const r = Math.floor(Math.random()*rows);
+      const c = Math.floor(Math.random()*cols);
+      if (grid[r][c].mine) continue;
+      if (Math.abs(r-excludeR)<=1 && Math.abs(c-excludeC)<=1) continue;
+      grid[r][c].mine = true;
+      placed++;
+    }
+    for (let r=0;r<rows;r++){
+      for (let c=0;c<cols;c++){
+        if (grid[r][c].mine) continue;
+        let count = 0;
+        for (let dr=-1;dr<=1;dr++){
+          for (let dc=-1;dc<=1;dc++){
+            if (dr===0 && dc===0) continue;
+            const nr=r+dr, nc=c+dc;
+            if (nr>=0 && nr<rows && nc>=0 && nc<cols && grid[nr][nc].mine) count++;
+          }
+        }
+        grid[r][c].adj = count;
+      }
+    }
+  }
+
+  function startTimer(){
+    timerInterval = setInterval(()=>{
+      seconds++;
+      timerEl.textContent = formatTime(seconds);
+    }, 1000);
+  }
+
+  function reveal(r, c){
+    if (gameOver || gameWon) return;
+    const cell = grid[r][c];
+    if (cell.revealed || cell.flagged) return;
+    if (firstClick){
+      placeMines(r, c);
+      firstClick = false;
+      startTimer();
+      statusEl.textContent = 'プレイ中';
+    }
+    if (cell.mine){
+      cell.revealed = true;
+      gameOver = true;
+      explodedR = r; explodedC = c;
+      clearInterval(timerInterval);
+      revealAllMines();
+      statusEl.textContent = '爆発しました。ゲームオーバー（経過時間 ' + formatTime(seconds) + '）';
+      statusEl.className = 'lose';
+      retryBtn.style.display = 'inline-flex';
+      render();
+      return;
+    }
+    floodReveal(r,c);
+    checkWin();
+    render();
+  }
+
+  function floodReveal(r,c){
+    const stack = [[r,c]];
+    while(stack.length){
+      const [cr,cc] = stack.pop();
+      const cell = grid[cr][cc];
+      if (cell.revealed || cell.flagged) continue;
+      cell.revealed = true;
+      revealedCount++;
+      if (cell.adj === 0){
+        for (let dr=-1;dr<=1;dr++){
+          for (let dc=-1;dc<=1;dc++){
+            if (dr===0 && dc===0) continue;
+            const nr=cr+dr, nc=cc+dc;
+            if (nr>=0 && nr<rows && nc>=0 && nc<cols && !grid[nr][nc].revealed && !grid[nr][nc].mine){
+              stack.push([nr,nc]);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  function revealAllMines(){
+    for (let r=0;r<rows;r++){
+      for (let c=0;c<cols;c++){
+        if (grid[r][c].mine) grid[r][c].revealed = true;
+      }
+    }
+  }
+
+  function autoFlagRemainingMines(){
+    for (let r=0;r<rows;r++){
+      for (let c=0;c<cols;c++){
+        if (grid[r][c].mine && !grid[r][c].flagged){
+          grid[r][c].flagged = true;
+          flagCount++;
+        }
+      }
+    }
+    updateRemainingMines();
+  }
+
+  function checkWin(){
+    if (revealedCount === rows*cols - mines){
+      gameWon = true;
+      clearInterval(timerInterval);
+      autoFlagRemainingMines();
+      statusEl.textContent = 'クリア！経過時間 ' + formatTime(seconds) + '　おめでとうございます';
+      statusEl.className = 'win';
+    }
+  }
+
+  function toggleFlag(r,c){
+    if (gameOver || gameWon) return;
+    const cell = grid[r][c];
+    if (cell.revealed) return;
+    cell.flagged = !cell.flagged;
+    flagCount += cell.flagged ? 1 : -1;
+    updateRemainingMines();
+    render();
+  }
+
+  function handleCellActivate(r,c){
+    if (flagMode){
+      toggleFlag(r,c);
+    } else {
+      reveal(r,c);
+    }
+  }
+
+  flagModeBtn.addEventListener('click', ()=>{
+    flagMode = !flagMode;
+    flagModeBtn.textContent = '🚩 フラグモード: ' + (flagMode ? 'オン' : 'オフ');
+    flagModeBtn.classList.toggle('active', flagMode);
+  });
+
+  function render(){
+    boardEl.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
+    boardEl.innerHTML = '';
+    const fontSize = cellSize > 24 ? 14 : (cellSize > 18 ? 12 : 10);
+    for (let r=0;r<rows;r++){
+      for (let c=0;c<cols;c++){
+        const cell = grid[r][c];
+        const div = document.createElement('div');
+        div.className = 'cell';
+        div.style.width = cellSize+'px';
+        div.style.height = cellSize+'px';
+        div.style.fontSize = fontSize+'px';
+        if (cell.revealed){
+          div.classList.add('revealed');
+          if (cell.mine){
+            const isExploded = (r === explodedR && c === explodedC);
+            if (isExploded){
+              div.classList.add('exploded');
+              div.textContent = '💣';
+            } else {
+              div.classList.add('other-mine');
+              div.textContent = '💣';
+            }
+          } else if (cell.adj > 0){
+            div.textContent = cell.adj;
+            div.style.color = numColors[cell.adj];
+          }
+        } else {
+          if (cell.flagged){
+            div.textContent = '🚩';
+          }
+          div.addEventListener('click', ()=>{
+            if (longPressFired){ longPressFired = false; return; }
+            handleCellActivate(r,c);
+          });
+          div.addEventListener('contextmenu', (e)=>{ e.preventDefault(); toggleFlag(r,c); });
+          div.addEventListener('touchstart', (e)=>{
+            longPressFired = false;
+            longPressTimer = setTimeout(()=>{
+              longPressFired = true;
+              toggleFlag(r,c);
+              if (navigator.vibrate) navigator.vibrate(15);
+            }, 450);
+          }, {passive:true});
+          div.addEventListener('touchend', ()=>{
+            clearTimeout(longPressTimer);
+          });
+          div.addEventListener('touchmove', ()=>{
+            clearTimeout(longPressTimer);
+          });
+        }
+        boardEl.appendChild(div);
+      }
+    }
+  }
+
+  window.addEventListener('resize', ()=>{
+    if (!firstClick && !gameOver && !gameWon) return;
+    cellSize = computeCellSize();
+    render();
+  });
+
+  newBtn.addEventListener('click', initGame);
+  retryBtn.addEventListener('click', initGame);
+  diffSel.addEventListener('change', initGame);
+  document.addEventListener('gesturestart', e => e.preventDefault());
+  initGame();
+})();
+</script>
+</body>
+</html>
