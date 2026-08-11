@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>宇宙のスクリーンセーバー</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000000;
+    overflow: hidden;
+    cursor: none;
+  }
+  canvas {
+    display: block;
+  }
+  #hint {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.25);
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    pointer-events: none;
+    transition: opacity 1s ease;
+  }
+</style>
+</head>
+<body>
+<canvas id="space"></canvas>
+<div id="hint">マウスを動かすと視点が変わります</div>
+
+<script>
+const canvas = document.getElementById('space');
+const ctx = canvas.getContext('2d');
+let W, H, CX, CY;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  CX = W / 2;
+  CY = H / 2;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---- マウス視差 ----
+let mouseX = 0, mouseY = 0;
+let targetParX = 0, targetParY = 0;
+let parX = 0, parY = 0;
+window.addEventListener('mousemove', (e) => {
+  targetParX = (e.clientX - CX) / CX;
+  targetParY = (e.clientY - CY) / CY;
+  const hint = document.getElementById('hint');
+  hint.style.opacity = 0;
+});
+
+// ---- 星（多層でパララックス） ----
+const STAR_LAYERS = 3;
+let stars = [];
+function initStars() {
+  stars = [];
+  for (let layer = 0; layer < STAR_LAYERS; layer++) {
+    const count = 140 - layer * 30;
+    const depth = (layer + 1) / STAR_LAYERS; // 0.33, 0.66, 1.0
+    for (let i = 0; i < count; i++) {
+      stars.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * (1.6 - depth * 0.8) + 0.3,
+        depth: depth,
+        baseAlpha: Math.random() * 0.5 + 0.4,
+        twinkleSpeed: Math.random() * 0.02 + 0.005,
+        twinklePhase: Math.random() * Math.PI * 2,
+        hue: Math.random() < 0.15 ? (Math.random() < 0.5 ? 210 : 30) : 0 // たまに青系/黄系
+      });
+    }
+  }
+}
+initStars();
+
+// ---- 星雲（淡いグラデーションの雲） ----
+const nebulae = [];
+function initNebulae() {
+  nebulae.length = 0;
+  const palettes = [
+    ['rgba(80,40,120,0.18)', 'rgba(30,10,60,0)'],
+    ['rgba(20,60,110,0.16)', 'rgba(10,20,50,0)'],
+    ['rgba(120,30,70,0.14)', 'rgba(50,10,30,0)'],
+    ['rgba(30,90,90,0.12)', 'rgba(10,40,40,0)']
+  ];
+  for (let i = 0; i < 5; i++) {
+    const p = palettes[i % palettes.length];
+    nebulae.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 300 + 250,
+      colorIn: p[0],
+      colorOut: p[1],
+      driftX: (Math.random() - 0.5) * 0.05,
+      driftY: (Math.random() - 0.5) * 0.05
+    });
+  }
+}
+initNebulae();
+
+// ---- 惑星（ゆっくり公転する小さな星系） ----
+const planets = [
+  { orbitR: Math.min(W, H) * 0.28, angle: Math.random() * Math.PI * 2, speed: 0.0006, size: 34, color: '#c98b4a', ring: false, moonAngle: 0 },
+  { orbitR: Math.min(W, H) * 0.40, angle: Math.random() * Math.PI * 2, speed: 0.0003, size: 22, color: '#7ea9c9', ring: true, moonAngle: 0 },
+];
+
+// ---- 流れ星 ----
+let shootingStars = [];
+function spawnShootingStar() {
+  const fromLeft = Math.random() < 0.5;
+  const y = Math.random() * H * 0.5;
+  shootingStars.push({
+    x: fromLeft ? -50 : W + 50,
+    y: y,
+    vx: (fromLeft ? 1 : -1) * (Math.random() * 6 + 8),
+    vy: Math.random() * 3 + 2,
+    life: 0,
+    maxLife: 60,
+    trail: []
+  });
+}
+setInterval(() => {
+  if (Math.random() < 0.7) spawnShootingStar();
+}, 2600);
+
+// ---- 遠くの銀河（回転する渦） ----
+const galaxy = { x: W * 0.8, y: H * 0.2, r: 60, rot: 0 };
+
+let t = 0;
+
+function drawBackground() {
+  ctx.fillStyle = '#000005';
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawNebulae() {
+  for (const n of nebulae) {
+    n.x += n.driftX;
+    n.y += n.driftY;
+    if (n.x < -n.r) n.x = W + n.r;
+    if (n.x > W + n.r) n.x = -n.r;
+    if (n.y < -n.r) n.y = H + n.r;
+    if (n.y > H + n.r) n.y = -n.r;
+
+    const px = n.x + parX * 10;
+    const py = n.y + parY * 10;
+    const grad = ctx.createRadialGradient(px, py, 0, px, py, n.r);
+    grad.addColorStop(0, n.colorIn);
+    grad.addColorStop(1, n.colorOut);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(px, py, n.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawGalaxy() {
+  ctx.save();
+  const px = galaxy.x + parX * 20;
+  const py = galaxy.y + parY * 20;
+  ctx.translate(px, py);
+  galaxy.rot += 0.0008;
+  ctx.rotate(galaxy.rot);
+  const arms = 3;
+  for (let a = 0; a < arms; a++) {
+    ctx.rotate((Math.PI * 2) / arms);
+    ctx.beginPath();
+    for (let i = 0; i < 40; i++) {
+      const angle = i * 0.25;
+      const r = i * 1.6;
+      const x = Math.cos(angle) * r;
+      const y = Math.sin(angle) * r * 0.5;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = 'rgba(200,190,255,0.25)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 18);
+  coreGrad.addColorStop(0, 'rgba(255,250,230,0.9)');
+  coreGrad.addColorStop(1, 'rgba(255,250,230,0)');
+  ctx.fillStyle = coreGrad;
+  ctx.beginPath();
+  ctx.arc(0, 0, 18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawStars() {
+  for (const s of stars) {
+    const px = s.x + parX * 30 * s.depth;
+    const py = s.y + parY * 30 * s.depth;
+    const twinkle = Math.sin(t * s.twinkleSpeed + s.twinklePhase) * 0.5 + 0.5;
+    const alpha = s.baseAlpha * (0.6 + 0.4 * twinkle);
+    let color;
+    if (s.hue === 210) color = `rgba(180,200,255,${alpha})`;
+    else if (s.hue === 30) color = `rgba(255,230,180,${alpha})`;
+    else color = `rgba(255,255,255,${alpha})`;
+    ctx.beginPath();
+    ctx.fillStyle = color;
+    ctx.arc(((px % W) + W) % W, ((py % H) + H) % H, s.r, 0, Math.PI * 2);
+    ctx.fill();
+    // 明るい星には光芒
+    if (s.r > 1.2 && twinkle > 0.85) {
+      const x = ((px % W) + W) % W;
+      const y = ((py % H) + H) % H;
+      ctx.save();
+      ctx.globalAlpha = (twinkle - 0.85) * 3;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(x - 6, y);
+      ctx.lineTo(x + 6, y);
+      ctx.moveTo(x, y - 6);
+      ctx.lineTo(x, y + 6);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+function drawPlanets() {
+  const baseX = CX + parX * 5;
+  const baseY = CY + parY * 5;
+  for (const p of planets) {
+    p.angle += p.speed;
+    const x = baseX + Math.cos(p.angle) * p.orbitR;
+    const y = baseY + Math.sin(p.angle) * p.orbitR * 0.55;
+
+    // 軌道の淡い線
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.beginPath();
+    ctx.ellipse(baseX, baseY, p.orbitR, p.orbitR * 0.55, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // 惑星本体
+    const grad = ctx.createRadialGradient(x - p.size * 0.3, y - p.size * 0.3, p.size * 0.1, x, y, p.size);
+    grad.addColorStop(0, lighten(p.color, 40));
+    grad.addColorStop(1, p.color);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (p.ring) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(-0.4);
+      ctx.strokeStyle = 'rgba(220,220,200,0.5)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, p.size * 1.7, p.size * 0.45, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+function lighten(hex, amt) {
+  const num = parseInt(hex.slice(1), 16);
+  let r = (num >> 16) + amt;
+  let g = ((num >> 8) & 0x00FF) + amt;
+  let b = (num & 0x0000FF) + amt;
+  r = Math.min(255, r); g = Math.min(255, g); b = Math.min(255, b);
+  return `rgb(${r},${g},${b})`;
+}
+
+function drawShootingStars() {
+  shootingStars = shootingStars.filter(s => s.life < s.maxLife);
+  for (const s of shootingStars) {
+    s.x += s.vx;
+    s.y += s.vy;
+    s.life++;
+    s.trail.push({ x: s.x, y: s.y });
+    if (s.trail.length > 15) s.trail.shift();
+
+    ctx.save();
+    for (let i = 0; i < s.trail.length; i++) {
+      const pt = s.trail[i];
+      const alpha = (i / s.trail.length) * 0.8;
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      const size = (i / s.trail.length) * 2 + 0.3;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+function animate() {
+  t++;
+  parX += (targetParX - parX) * 0.03;
+  parY += (targetParY - parY) * 0.03;
+
+  drawBackground();
+  drawNebulae();
+  drawGalaxy();
+  drawStars();
+  drawPlanets();
+  drawShootingStars();
+
+  requestAnimationFrame(animate);
+}
+animate();
+
+// フルスクリーン切り替え（クリックで）
+document.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen();
+  }
+});
+</script>
+</body>
+</html>

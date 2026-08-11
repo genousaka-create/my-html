@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コリドール</title>
+<style>
+  body { font-family: 'Hiragino Sans', 'Meiryo', sans-serif; background:#2b2b3d; color:#eee; display:flex; flex-direction:column; align-items:center; padding:20px; margin:0;}
+  h1 { margin:10px 0; font-size:1.5em;}
+  #info { display:flex; gap:20px; margin-bottom:10px; align-items:center; flex-wrap:wrap; justify-content:center;}
+  .player-info { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:8px; background:#3a3a52;}
+  .player-info.active { background:#55557a; box-shadow:0 0 8px #8888ff;}
+  .dot { width:16px; height:16px; border-radius:50%; }
+  #controls { display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; justify-content:center;}
+  button { background:#4a4a6a; color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:0.95em;}
+  button:hover { background:#5c5c85; }
+  button.active { background:#7a7ac0; }
+  #boardWrap { position:relative; }
+  canvas { background:#1f1f2e; border-radius:8px; touch-action: none; max-width:95vw; height:auto; }
+  #message { margin-top:10px; min-height:1.5em; font-size:1.1em; }
+  #rules { max-width:520px; margin-top:16px; font-size:0.85em; line-height:1.6; color:#bbb; background:#26263a; padding:12px 16px; border-radius:8px;}
+</style>
+</head>
+<body>
+<h1>コリドール (Quoridor)</h1>
+<div id="info">
+  <div class="player-info" id="p0info"><div class="dot" style="background:#ff5c5c"></div><span>プレイヤー1</span><span id="w0">壁: 10</span></div>
+  <div class="player-info" id="p1info"><div class="dot" style="background:#5c9eff"></div><span id="p1name">プレイヤー2</span><span id="w1">壁: 10</span></div>
+</div>
+<div id="controls">
+  <button id="vsHumanBtn" class="active">対戦相手: 人間</button>
+  <button id="vsAiBtn">対戦相手: AI</button>
+  <button id="resetBtn">リセット</button>
+</div>
+<div id="boardWrap">
+  <canvas id="board" width="560" height="560"></canvas>
+</div>
+<div id="message"></div>
+<div id="rules">
+  <b>ルール</b>: マスの中央をクリックすると駒が移動、マスとマスの境界付近をクリックすると壁を設置します(横か縦かはカーソル位置で自動判定)。自分の陣地の反対側の端に先に到達したら勝ちです。壁で隣接した相手の駒は飛び越えられます（飛び越え先が壁や盤外なら斜めに移動可）。壁は必ずどちらかの駒がゴールへ到達できる経路を残すように置く必要があります。壁は各プレイヤー10枚まで。「対戦相手: AI」を選ぶとプレイヤー2をコンピューターが操作します。
+</div>
+<script>
+(function(){
+  const SIZE = 9;
+  const CELL = 55;
+  const PAD = 30;
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  canvas.width = PAD*2 + CELL*SIZE;
+  canvas.height = PAD*2 + CELL*SIZE;
+
+  let pawns, walls, wallsLeft, current, gameOver, legalMoves, hoverWall;
+  let aiEnabled = false;
+  const aiPlayerIndex = 1;
+
+  function initGame(){
+    pawns = [
+      {r:0, c:4, goal:8, color:'#ff5c5c'},
+      {r:8, c:4, goal:0, color:'#5c9eff'}
+    ];
+    walls = { h:new Set(), v:new Set() }; // h "i,j": blocks between row i/i+1 at col j,j+1 ; v "i,j": blocks between col j/j+1 at row i,i+1
+    wallsLeft = [10,10];
+    current = 0;
+    gameOver = false;
+    hoverWall = null;
+    document.getElementById('message').textContent = '';
+    document.getElementById('p1name').textContent = aiEnabled ? 'AI' : 'プレイヤー2';
+    computeLegalMoves();
+    updateInfo();
+    render();
+  }
+
+  function updateInfo(){
+    document.getElementById('w0').textContent = '壁: '+wallsLeft[0];
+    document.getElementById('w1').textContent = '壁: '+wallsLeft[1];
+    document.getElementById('p0info').classList.toggle('active', current===0 && !gameOver);
+    document.getElementById('p1info').classList.toggle('active', current===1 && !gameOver);
+  }
+
+  function inBounds(r,c){ return r>=0 && r<SIZE && c>=0 && c<SIZE; }
+
+  function wallBlocks(r,c,dr,dc){
+    if(dr===1){
+      return walls.h.has(r+','+(c-1)) || walls.h.has(r+','+c);
+    } else if(dr===-1){
+      return walls.h.has((r-1)+','+(c-1)) || walls.h.has((r-1)+','+c);
+    } else if(dc===1){
+      return walls.v.has((r-1)+','+c) || walls.v.has(r+','+c);
+    } else if(dc===-1){
+      return walls.v.has((r-1)+','+(c-1)) || walls.v.has(r+','+(c-1));
+    }
+    return false;
+  }
+
+  function computeLegalMovesFor(pi){
+    const p = pawns[pi];
+    const other = pawns[1-pi];
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    const moves = [];
+    for(const [dr,dc] of dirs){
+      const nr=p.r+dr, nc=p.c+dc;
+      if(!inBounds(nr,nc)) continue;
+      if(wallBlocks(p.r,p.c,dr,dc)) continue;
+      if(other.r===nr && other.c===nc){
+        const jr=nr+dr, jc=nc+dc;
+        if(inBounds(jr,jc) && !wallBlocks(nr,nc,dr,dc)){
+          moves.push([jr,jc]);
+        } else {
+          const perp = (dr!==0) ? [[0,1],[0,-1]] : [[1,0],[-1,0]];
+          for(const [pdr,pdc] of perp){
+            const sr=nr+pdr, sc=nc+pdc;
+            if(inBounds(sr,sc) && !wallBlocks(nr,nc,pdr,pdc)){
+              moves.push([sr,sc]);
+            }
+          }
+        }
+      } else {
+        moves.push([nr,nc]);
+      }
+    }
+    return moves;
+  }
+
+  function computeLegalMoves(){
+    legalMoves = computeLegalMovesFor(current);
+  }
+
+  function bfsDistanceGeneric(startR, startC, goalRow, extraH, extraV){
+    const hset = extraH ? new Set([...walls.h, extraH]) : walls.h;
+    const vset = extraV ? new Set([...walls.v, extraV]) : walls.v;
+    function blocked(r,c,dr,dc){
+      if(dr===1) return hset.has(r+','+(c-1)) || hset.has(r+','+c);
+      if(dr===-1) return hset.has((r-1)+','+(c-1)) || hset.has((r-1)+','+c);
+      if(dc===1) return vset.has((r-1)+','+c) || vset.has(r+','+c);
+      if(dc===-1) return vset.has((r-1)+','+(c-1)) || vset.has(r+','+(c-1));
+      return false;
+    }
+    const visited = new Set();
+    const queue = [[startR,startC,0]];
+    visited.add(startR+','+startC);
+    while(queue.length){
+      const [r,c,d] = queue.shift();
+      if(r===goalRow) return d;
+      const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+      for(const [dr,dc] of dirs){
+        const nr=r+dr,nc=c+dc;
+        if(!inBounds(nr,nc)) continue;
+        if(blocked(r,c,dr,dc)) continue;
+        const key=nr+','+nc;
+        if(!visited.has(key)){
+          visited.add(key);
+          queue.push([nr,nc,d+1]);
+        }
+      }
+    }
+    return Infinity;
+  }
+
+  function bfsDistance(pi, extraH, extraV){
+    return bfsDistanceGeneric(pawns[pi].r, pawns[pi].c, pawns[pi].goal, extraH, extraV);
+  }
+
+  function pathExists(pi, extraH, extraV){
+    return bfsDistance(pi, extraH, extraV) !== Infinity;
+  }
+
+  function wallOverlap(type,i,j){
+    if(type==='h'){
+      if(walls.h.has(i+','+j)) return true;
+      if(walls.h.has(i+','+(j-1))) return true;
+      if(walls.h.has(i+','+(j+1))) return true;
+      if(walls.v.has(i+','+j)) return true;
+      return false;
+    } else {
+      if(walls.v.has(i+','+j)) return true;
+      if(walls.v.has((i-1)+','+j)) return true;
+      if(walls.v.has((i+1)+','+j)) return true;
+      if(walls.h.has(i+','+j)) return true;
+      return false;
+    }
+  }
+
+  function canPlaceWall(type,i,j){
+    if(i<0||i>=SIZE-1||j<0||j>=SIZE-1) return false;
+    if(wallsLeft[current]<=0) return false;
+    if(wallOverlap(type,i,j)) return false;
+    const key = i+','+j;
+    const extraH = type==='h'? key : null;
+    const extraV = type==='v'? key : null;
+    if(!pathExists(0, extraH, extraV)) return false;
+    if(!pathExists(1, extraH, extraV)) return false;
+    return true;
+  }
+
+  function placeWall(type,i,j){
+    if(!canPlaceWall(type,i,j)) return false;
+    const key=i+','+j;
+    if(type==='h') walls.h.add(key); else walls.v.add(key);
+    wallsLeft[current]--;
+    endTurn();
+    return true;
+  }
+
+  function movePawn(r,c){
+    const legal = legalMoves.some(m=>m[0]===r && m[1]===c);
+    if(!legal) return false;
+    pawns[current].r = r;
+    pawns[current].c = c;
+    if(r === pawns[current].goal){
+      gameOver = true;
+      render();
+      updateInfo();
+      const winnerName = current===0 ? 'プレイヤー1' : (aiEnabled ? 'AI' : 'プレイヤー2');
+      document.getElementById('message').textContent = winnerName + ' の勝利！🎉';
+      return true;
+    }
+    endTurn();
+    return true;
+  }
+
+  function endTurn(){
+    current = 1-current;
+    computeLegalMoves();
+    updateInfo();
+    render();
+    if(!gameOver && aiEnabled && current === aiPlayerIndex){
+      setTimeout(aiTakeTurn, 500);
+    }
+  }
+
+  function aiTakeTurn(){
+    if(gameOver) return;
+    const ai = current;
+    const human = 1-ai;
+    document.getElementById('message').textContent = 'AI思考中…';
+    const myDist0 = bfsDistance(ai, null, null);
+    const oppDist0 = bfsDistance(human, null, null);
+    let bestWall = null, bestScore = -Infinity;
+    if(wallsLeft[ai] > 0){
+      for(let i=0;i<SIZE-1;i++){
+        for(let j=0;j<SIZE-1;j++){
+          for(const type of ['h','v']){
+            if(!canPlaceWall(type,i,j)) continue;
+            const key = i+','+j;
+            const extraH = type==='h' ? key : null;
+            const extraV = type==='v' ? key : null;
+            const oppDist1 = bfsDistance(human, extraH, extraV);
+            const myDist1 = bfsDistance(ai, extraH, extraV);
+            const score = (oppDist1 - oppDist0) - (myDist1 - myDist0) * 0.7;
+            if(score > bestScore){
+              bestScore = score;
+              bestWall = {type,i,j};
+            }
+          }
+        }
+      }
+    }
+    const WALL_THRESHOLD = 1.5;
+    let acted = false;
+    if(bestWall && bestScore >= WALL_THRESHOLD && Math.random() < 0.85){
+      acted = placeWall(bestWall.type, bestWall.i, bestWall.j);
+    }
+    if(!acted){
+      const candidates = legalMoves.map(([r,c])=>({
+        r, c, d: bfsDistanceGeneric(r, c, pawns[ai].goal, null, null)
+      }));
+      candidates.sort((a,b)=>a.d-b.d);
+      const bestD = candidates[0].d;
+      const bestOnes = candidates.filter(c=>c.d===bestD);
+      const pick = bestOnes[Math.floor(Math.random()*bestOnes.length)];
+      movePawn(pick.r, pick.c);
+    }
+    if(!gameOver) document.getElementById('message').textContent = '';
+  }
+
+  function cellToPx(r,c){
+    return { x: PAD + c*CELL, y: PAD + r*CELL };
+  }
+
+  function roundRect(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function render(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for(let r=0;r<SIZE;r++){
+      for(let c=0;c<SIZE;c++){
+        const {x,y} = cellToPx(r,c);
+        ctx.fillStyle = '#33334a';
+        roundRect(ctx, x+2, y+2, CELL-4, CELL-4, 6);
+        ctx.fill();
+      }
+    }
+    for(let c=0;c<SIZE;c++){
+      let p1 = cellToPx(0,c);
+      ctx.fillStyle='rgba(92,158,255,0.12)';
+      roundRect(ctx,p1.x+2,p1.y+2,CELL-4,CELL-4,6); ctx.fill();
+      let p2 = cellToPx(8,c);
+      ctx.fillStyle='rgba(255,92,92,0.12)';
+      roundRect(ctx,p2.x+2,p2.y+2,CELL-4,CELL-4,6); ctx.fill();
+    }
+
+    if(!gameOver){
+      for(const [r,c] of legalMoves){
+        const {x,y} = cellToPx(r,c);
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        roundRect(ctx,x+2,y+2,CELL-4,CELL-4,6); ctx.fill();
+      }
+    }
+
+    pawns.forEach((p,idx)=>{
+      const {x,y} = cellToPx(p.r,p.c);
+      ctx.beginPath();
+      ctx.arc(x+CELL/2, y+CELL/2, CELL*0.32, 0, Math.PI*2);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = idx===current && !gameOver ? 15 : 0;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+
+    ctx.fillStyle = '#f2c14e';
+    walls.h.forEach(key=>{
+      const [i,j] = key.split(',').map(Number);
+      const {x,y} = cellToPx(i+1,j);
+      ctx.fillRect(x, y-5, CELL*2, 10);
+    });
+    walls.v.forEach(key=>{
+      const [i,j] = key.split(',').map(Number);
+      const {x,y} = cellToPx(i,j+1);
+      ctx.fillRect(x-5, y, 10, CELL*2);
+    });
+
+    if(hoverWall){
+      const {type,i,j,valid} = hoverWall;
+      ctx.fillStyle = valid ? 'rgba(242,193,78,0.5)' : 'rgba(255,80,80,0.5)';
+      if(type==='h'){
+        const {x,y} = cellToPx(i+1,j);
+        ctx.fillRect(x, y-5, CELL*2, 10);
+      } else {
+        const {x,y} = cellToPx(i,j+1);
+        ctx.fillRect(x-5, y, 10, CELL*2);
+      }
+    }
+  }
+
+  function getCellFromPx(x,y){
+    const c = Math.floor((x-PAD)/CELL);
+    const r = Math.floor((y-PAD)/CELL);
+    if(r<0||r>=SIZE||c<0||c>=SIZE) return null;
+    return {r,c};
+  }
+
+  function chooseWall(x,y){
+    const gx = (x-PAD)/CELL;
+    const gy = (y-PAD)/CELL;
+    const distRow = Math.abs(gy - Math.round(gy)); // 横の壁(行境界)への近さ
+    const distCol = Math.abs(gx - Math.round(gx)); // 縦の壁(列境界)への近さ
+    const type = distRow < distCol ? 'h' : 'v';
+    let j = Math.round(gx) - 1;
+    let i = Math.round(gy) - 1;
+    j = Math.max(0, Math.min(SIZE-2, j));
+    i = Math.max(0, Math.min(SIZE-2, i));
+    return {type,i,j};
+  }
+
+  const EDGE_ZONE = 0.3; // マス端からこの割合以内なら「壁ゾーン」
+
+  function getZone(x,y){
+    const gx = (x-PAD)/CELL;
+    const gy = (y-PAD)/CELL;
+    const cellR = Math.floor(gy);
+    const cellC = Math.floor(gx);
+    // マスのどこをクリックしても、そこがハイライトされた移動先なら移動を優先
+    if(inBounds(cellR,cellC) && legalMoves.some(m=>m[0]===cellR && m[1]===cellC)){
+      return {kind:'move', r:cellR, c:cellC};
+    }
+    const fx = gx - cellC;
+    const fy = gy - cellR;
+    const distEdgeX = Math.min(fx, 1-fx);
+    const distEdgeY = Math.min(fy, 1-fy);
+    const nearEdge = distEdgeX < EDGE_ZONE || distEdgeY < EDGE_ZONE;
+    if(nearEdge){
+      const {type,i,j} = chooseWall(x,y);
+      return {kind:'wall', type, i, j};
+    }
+    return {kind:'none'};
+  }
+
+  function toCanvasCoords(clientX, clientY){
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (clientX-rect.left) * (canvas.width/rect.width),
+      y: (clientY-rect.top) * (canvas.height/rect.height)
+    };
+  }
+
+  canvas.addEventListener('mousemove', (e)=>{
+    if(gameOver || (aiEnabled && current===aiPlayerIndex)) return;
+    const {x,y} = toCanvasCoords(e.clientX, e.clientY);
+    const zone = getZone(x,y);
+    if(zone.kind!=='wall'){
+      if(hoverWall){ hoverWall=null; render(); }
+      return;
+    }
+    const valid = canPlaceWall(zone.type, zone.i, zone.j);
+    hoverWall = {type:zone.type, i:zone.i, j:zone.j, valid};
+    render();
+  });
+
+  canvas.addEventListener('mouseleave', ()=>{ hoverWall=null; render(); });
+
+  canvas.addEventListener('click', (e)=>{
+    if(gameOver || (aiEnabled && current===aiPlayerIndex)) return;
+    const {x,y} = toCanvasCoords(e.clientX, e.clientY);
+    const zone = getZone(x,y);
+    if(zone.kind==='move'){
+      movePawn(zone.r, zone.c);
+    } else if(zone.kind==='wall'){
+      if(!placeWall(zone.type, zone.i, zone.j)){
+        document.getElementById('message').textContent = '壁は置けません';
+        setTimeout(()=>{ if(!gameOver) document.getElementById('message').textContent=''; }, 1200);
+      } else {
+        hoverWall = null;
+      }
+    }
+  });
+
+  canvas.addEventListener('touchstart', (e)=>{
+    e.preventDefault();
+    if(gameOver || (aiEnabled && current===aiPlayerIndex)) return;
+    const t = e.touches[0];
+    const {x,y} = toCanvasCoords(t.clientX, t.clientY);
+    const zone = getZone(x,y);
+    if(zone.kind==='move'){
+      movePawn(zone.r, zone.c);
+    } else if(zone.kind==='wall'){
+      const valid = canPlaceWall(zone.type, zone.i, zone.j);
+      hoverWall = {type:zone.type, i:zone.i, j:zone.j, valid};
+      render();
+    }
+  }, {passive:false});
+
+  canvas.addEventListener('touchend', (e)=>{
+    if(gameOver || (aiEnabled && current===aiPlayerIndex)) return;
+    if(hoverWall && hoverWall.valid){
+      placeWall(hoverWall.type, hoverWall.i, hoverWall.j);
+      hoverWall=null;
+    }
+  });
+
+  document.getElementById('vsHumanBtn').addEventListener('click', ()=>{
+    aiEnabled = false;
+    document.getElementById('vsHumanBtn').classList.add('active');
+    document.getElementById('vsAiBtn').classList.remove('active');
+    initGame();
+  });
+  document.getElementById('vsAiBtn').addEventListener('click', ()=>{
+    aiEnabled = true;
+    document.getElementById('vsAiBtn').classList.add('active');
+    document.getElementById('vsHumanBtn').classList.remove('active');
+    initGame();
+  });
+  document.getElementById('resetBtn').addEventListener('click', initGame);
+
+  initGame();
+})();
+</script>
+</body>
+</html>
