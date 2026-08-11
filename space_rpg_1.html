@@ -1,0 +1,2665 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="サルベージャー">
+<meta name="theme-color" content="#05060c">
+<title>星屑のサルベージャー</title>
+<style>
+  :root{
+    --bg:#05060c;
+    --border:#2a3a5c;
+    --accent:#4fd6ff;
+    --accent2:#ff6b6b;
+    --gold:#ffcf5c;
+    --text:#dfe8ff;
+    --dim:#8a94b8;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{
+    margin:0; padding:0; height:100%; background:var(--bg); color:var(--text);
+    font-family:"Hiragino Sans","Yu Gothic",sans-serif; overflow:hidden; user-select:none;
+    position:fixed; inset:0; overscroll-behavior:none; -webkit-touch-callout:none;
+  }
+  #wrap{
+    position:relative; width:100vw; height:100vh; height:100dvh; max-width:900px;
+    margin:0 auto; background:#000; overflow:hidden; box-shadow:0 0 40px #000;
+    padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+  }
+  canvas{ display:block; width:100%; height:100%; cursor:crosshair; touch-action:none; }
+  @media (min-width:601px){
+    #wrap{ max-height:640px; margin:auto; top:50%; transform:translateY(-50%); }
+  }
+
+  #hud{ position:absolute; top:0; left:0; right:0; padding:8px 10px; display:flex; flex-direction:column; gap:4px; pointer-events:none; font-size:12px; }
+  .bar-row{ display:flex; align-items:center; gap:6px; }
+  .bar-label{ width:34px; font-size:11px; color:var(--dim); flex-shrink:0;}
+  .bar-bg{ flex:1; height:12px; background:#00000080; border:1px solid var(--border); border-radius:6px; overflow:hidden; max-width:220px;}
+  .bar-fill{ height:100%; transition:width .15s linear; }
+  .fill-shield{ background:linear-gradient(90deg,#2b8fff,#4fd6ff); }
+  .fill-hull{ background:linear-gradient(90deg,#ff8b3d,#ffcf5c); }
+  .fill-energy{ background:linear-gradient(90deg,#7c4fff,#c98bff); }
+  .bar-num{ width:56px; font-size:11px; color:var(--dim); }
+
+  #topRight{ position:absolute; top:8px; right:10px; display:flex; flex-direction:column; align-items:flex-end; gap:4px; font-size:11px; color:var(--dim); }
+  #weaponStatus, #hullStatus, #creditsDisplay{ padding:3px 8px; border-radius:6px; border:1px solid var(--border); background:#00000080; }
+  #creditsDisplay{ color:var(--gold); border-color:var(--gold); }
+  #weaponStatus.broken{ color:var(--accent2); border-color:var(--accent2); animation:blink 1s infinite; }
+  @keyframes blink{ 50%{opacity:.4;} }
+
+  #matBar{ position:absolute; top:78px; left:10px; display:flex; gap:8px; pointer-events:none; font-size:11px; color:var(--dim); flex-wrap:wrap; max-width:70%; }
+  .matChip{ background:#00000080; border:1px solid var(--border); border-radius:10px; padding:2px 8px; }
+
+  #zoneLabel{ position:absolute; top:8px; left:50%; transform:translateX(-50%); font-size:12px; color:var(--gold); letter-spacing:2px; pointer-events:none; text-shadow:0 0 6px #000; }
+
+  #bottomBtns{ position:absolute; bottom:10px; left:0; right:0; display:flex; justify-content:center; gap:8px; pointer-events:none; }
+  .btn{ pointer-events:auto; background:#0d1220dd; border:1px solid var(--accent); color:var(--accent); padding:8px 14px; border-radius:8px; font-size:13px; cursor:pointer; }
+  .btn:active{ transform:scale(.96); }
+  .btn.warn{ border-color:var(--accent2); color:var(--accent2); }
+  .btn:disabled{ opacity:.35; pointer-events:none; }
+
+  #toastWrap{ position:absolute; bottom:60px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:2px; pointer-events:none; }
+  .toast{ background:#000000aa; padding:2px 10px; border-radius:6px; font-size:11px; color:var(--gold); animation:fadeUp 1.6s forwards; }
+  @keyframes fadeUp{ 0%{opacity:1; transform:translateY(0);} 80%{opacity:1;} 100%{opacity:0; transform:translateY(-16px);} }
+
+  /* 母船パネル */
+  #panel{ position:absolute; inset:0; background:#05060cf2; display:none; flex-direction:column; padding:14px; overflow-y:auto; z-index:20; }
+  #statusOverlay{ position:absolute; inset:0; background:#05060cf5; display:none; flex-direction:column; padding:14px; overflow-y:auto; z-index:22; }
+  #statusOverlay.show{ display:flex; }
+  #statusOverlay h2{ margin:0 0 10px; color:var(--accent); font-size:16px; letter-spacing:2px; }
+  #closeStatus{ position:absolute; top:10px; right:10px; background:none; border:1px solid var(--border); color:var(--dim); border-radius:50%; width:28px; height:28px; cursor:pointer; font-size:14px; }
+  .statBlock{ background:#0d1220aa; border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px; font-size:12px; line-height:1.7; }
+  .statBlock h3{ margin:0 0 4px; color:var(--gold); font-size:12px; letter-spacing:1px; }
+  #panel.show{ display:flex; }
+  #panel h2{ margin:0 0 10px; color:var(--accent); font-size:16px; letter-spacing:2px; }
+  .tabs{ display:flex; gap:6px; margin-bottom:10px; }
+  .tab{ flex:1; text-align:center; padding:8px 4px; border:1px solid var(--border); border-radius:8px; font-size:12px; cursor:pointer; color:var(--dim);}
+  .tab.active{ color:var(--accent); border-color:var(--accent); background:#0d1220; }
+  .tabContent{ display:none; flex-direction:column; gap:8px; }
+  .tabContent.active{ display:flex; }
+  .card{ background:#0d1220aa; border:1px solid var(--border); border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:4px; }
+  .card-title{ display:flex; justify-content:space-between; align-items:center; font-size:13px; }
+  .card-title .name{ color:var(--text); font-weight:bold; }
+  .card-sub{ font-size:11px; color:var(--dim); line-height:1.5; }
+  .card-actions{ display:flex; gap:6px; margin-top:4px; }
+  .smallbtn{ background:#0d1220; border:1px solid var(--accent); color:var(--accent); border-radius:6px; font-size:11px; padding:5px 10px; cursor:pointer; }
+  .smallbtn:disabled{ opacity:.3; pointer-events:none; }
+  .smallbtn.equipped{ background:var(--accent); color:#05060c; }
+  #closePanel{ position:absolute; top:10px; right:10px; background:none; border:1px solid var(--border); color:var(--dim); border-radius:50%; width:28px; height:28px; cursor:pointer; font-size:14px; }
+
+  #introOverlay{ position:absolute; inset:0; background:#05060c; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; z-index:30; padding:24px; }
+  #introOverlay h1{ color:var(--accent); font-size:22px; letter-spacing:4px; margin-bottom:6px; }
+  #introOverlay p{ color:var(--dim); font-size:12px; line-height:1.8; max-width:420px; }
+  #introButtons{ margin-top:18px; display:flex; gap:10px; }
+
+  /* 戦闘画面 */
+  #battleScreen{ position:absolute; inset:0; background:#04050ab0 radial-gradient(ellipse at center, #0c1024 0%, #030308 100%); display:none; flex-direction:column; padding:10px; z-index:25; }
+  #battleScreen.show{ display:flex; }
+  #victoryOverlay{
+    position:absolute; inset:0; z-index:40; display:none; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px;
+    background:#03040aee;
+  }
+  #victoryOverlay.show{ display:flex; }
+  #deathOverlay{
+    position:absolute; inset:0; z-index:40; display:none; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:24px;
+    background:#0a0304ee;
+  }
+  #deathOverlay.show{ display:flex; }
+  #deathOverlay h2{
+    font-size:24px; letter-spacing:6px; margin:0 0 10px; color:var(--accent2);
+    text-shadow:0 0 18px #ff6b6b99;
+    animation: victoryPop .4s cubic-bezier(.2,1.4,.4,1);
+  }
+  #deathOverlay p{ color:var(--dim); font-size:12px; margin-bottom:18px; }
+  #deathOverlay .btn{ min-width:180px; }
+  #victoryOverlay h2{
+    font-size:26px; letter-spacing:6px; margin:0 0 14px; color:var(--gold);
+    text-shadow:0 0 18px #ffcf5c99;
+    animation: victoryPop .4s cubic-bezier(.2,1.4,.4,1);
+  }
+  @keyframes victoryPop{ 0%{ transform:scale(0.4); opacity:0; } 100%{ transform:scale(1); opacity:1; } }
+  #victoryStats{ display:flex; flex-direction:column; gap:8px; margin-bottom:20px; min-width:240px; }
+  .vRow{
+    display:flex; justify-content:space-between; background:#0d1220cc; border:1px solid var(--border);
+    border-radius:8px; padding:8px 14px; font-size:13px; opacity:0; animation:vFadeIn .35s forwards;
+  }
+  .vRow .vval{ color:var(--gold); font-weight:bold; }
+  @keyframes vFadeIn{ to{ opacity:1; } }
+  #enemyRows{ flex:0 0 auto; max-height:34vh; display:flex; flex-direction:row; flex-wrap:wrap; align-content:flex-start; gap:8px; padding:6px 0; overflow-y:auto; }
+  .rowLabel{ font-size:9px; color:var(--dim); border:1px solid var(--border); border-radius:4px; padding:0 4px; flex-shrink:0; }
+  .enemyCard{ background:#0d1220cc; border:2px solid var(--border); border-radius:10px; padding:8px 10px; min-width:120px; cursor:pointer; position:relative; }
+  .enemyCard.selected{ border-color:var(--gold); box-shadow:0 0 10px #ffcf5c66; }
+  .enemyCard.dead{ opacity:.25; pointer-events:none; }
+  .enemyCard .ename{ font-size:12px; color:var(--text); margin-bottom:4px; display:flex; align-items:center; gap:5px; }
+  .etypeicon{ width:14px; height:14px; flex-shrink:0; }
+  .etypeicon.drone{ clip-path: circle(50%); }
+  .etypeicon.raider{ clip-path: polygon(100% 50%, 20% 0%, 0% 20%, 0% 80%, 20% 100%); }
+  .etypeicon.turret{ clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%); }
+  .etypeicon.bot{ clip-path: polygon(15% 0%, 85% 0%, 100% 50%, 85% 100%, 15% 100%, 0% 50%); }
+  .etypeicon.aa_drone{ clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+  .enemyCard .ebar-bg{ height:8px; background:#00000090; border-radius:4px; overflow:hidden; border:1px solid var(--border); }
+  .enemyCard .ebar-fill{ height:100%; background:linear-gradient(90deg,#ff8080,#ff5c5c); }
+  .enemyCard .erange{ font-size:10px; color:var(--dim); margin-top:4px; }
+
+  #battleStage{ width:100%; height:130px; display:block; background:#060814; border:1px solid var(--border); border-radius:8px; margin:6px 0; }
+
+  #battleLog{ height:92px; overflow-y:auto; background:#00000077; border:1px solid var(--border); border-radius:8px; padding:6px 9px; font-size:12px; line-height:1.6; color:var(--dim); margin-bottom:6px; }
+  #battleLog div{ padding:2px 0; border-bottom:1px solid #ffffff0f; }
+  #battleLog div:last-child{ border-bottom:none; }
+
+  #playerBattleStatus{ display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--dim); margin-bottom:6px; background:#0d1220aa; border:1px solid var(--border); border-radius:8px; padding:8px; }
+  #playerBattleStatus .bar-bg{ max-width:none; }
+  #weaponSelectRow{ display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-bottom:6px; }
+  .wchip{ background:#0d1220; border:1px solid var(--border); color:var(--dim); border-radius:8px; padding:5px 9px; font-size:11px; cursor:pointer; }
+  .wchip.equipped{ border-color:var(--gold); color:var(--gold); background:#0d1220; }
+  .wchip:active{ transform:scale(.96); }
+  #battleCmds{ display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+  .cmdBtn{ flex:1; min-width:70px; background:#0d1220; border:1px solid var(--accent); color:var(--accent); border-radius:8px; padding:10px 4px; font-size:12px; cursor:pointer; }
+  .cmdBtn:disabled{ opacity:.3; pointer-events:none; }
+  .cmdBtn.warn{ border-color:var(--accent2); color:var(--accent2); }
+  .cmdBtn.gold{ border-color:var(--gold); color:var(--gold); }
+  @media (max-width:600px){
+    .btn{ padding:12px 16px; font-size:14px; }
+    .cmdBtn{ padding:13px 4px; font-size:13px; min-width:0; }
+    .smallbtn{ padding:8px 12px; font-size:12px; }
+    .wchip{ padding:8px 11px; font-size:12px; }
+    #zoneLabel{ font-size:11px; }
+    #hud{ font-size:13px; }
+    .bar-label{ width:38px; font-size:12px; }
+    #matBar{ font-size:12px; }
+    .enemyCard{ min-width:104px; padding:10px 12px; }
+    #battleCmds{ gap:8px; }
+    #introOverlay h1{ font-size:19px; }
+    #introOverlay p{ font-size:13px; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+
+  <div id="zoneLabel">SPACE SECTOR</div>
+
+  <div id="hud">
+    <div class="bar-row">
+      <div class="bar-label">SHLD</div>
+      <div class="bar-bg"><div id="shieldFill" class="bar-fill fill-shield" style="width:100%"></div></div>
+      <div class="bar-num" id="shieldNum">40/40</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">HULL</div>
+      <div class="bar-bg"><div id="hullFill" class="bar-fill fill-hull" style="width:100%"></div></div>
+      <div class="bar-num" id="hullNum">100/100</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">ENRG</div>
+      <div class="bar-bg"><div id="energyFill" class="bar-fill fill-energy" style="width:100%"></div></div>
+      <div class="bar-num" id="energyNum">50/50</div>
+    </div>
+  </div>
+
+  <div id="topRight">
+    <div id="creditsDisplay">資金: 0</div>
+    <div id="hullStatus">船体: -</div>
+    <div id="weaponStatus">武装: -</div>
+  </div>
+  <div id="matBar"></div>
+  <div id="toastWrap"></div>
+
+  <div id="bottomBtns">
+    <button class="btn" id="dockBtn" style="display:none;">母船に接続</button>
+    <button class="btn" id="enterBtn" style="display:none;">漂流船に突入</button>
+    <button class="btn" id="exitBtn" style="display:none;">宙域へ帰還</button>
+    <button class="btn" id="statusBtn" style="border-color:var(--dim); color:var(--dim);">ステータス</button>
+  </div>
+
+  <div id="statusOverlay">
+    <button id="closeStatus">✕</button>
+    <h2>艦体ステータス</h2>
+    <div id="statusContent"></div>
+  </div>
+
+  <div id="panel">
+    <button id="closePanel">✕</button>
+    <h2>母船ドック</h2>
+    <div class="tabs">
+      <div class="tab active" data-tab="repair">修理</div>
+      <div class="tab" data-tab="equip">装備</div>
+      <div class="tab" data-tab="upgrade">強化</div>
+      <div class="tab" data-tab="craft">クラフト</div>
+      <div class="tab" data-tab="trade">取引</div>
+      <div class="tab" data-tab="hull">船体</div>
+    </div>
+    <div class="tabContent active" id="tab-repair"></div>
+    <div class="tabContent" id="tab-equip"></div>
+    <div class="tabContent" id="tab-upgrade"></div>
+    <div class="tabContent" id="tab-craft"></div>
+    <div class="tabContent" id="tab-trade"></div>
+    <div class="tabContent" id="tab-hull"></div>
+  </div>
+
+  <div id="battleScreen">
+    <div id="enemyRows"></div>
+    <canvas id="battleStage"></canvas>
+    <div id="battleLog"></div>
+    <div id="playerBattleStatus"></div>
+    <div id="weaponSelectRow"></div>
+    <div id="battleCmds">
+      <button class="cmdBtn gold" id="cmdAttack">攻撃</button>
+      <button class="cmdBtn" id="cmdClose">接近</button>
+      <button class="cmdBtn" id="cmdFar">距離を離す</button>
+      <button class="cmdBtn" id="cmdGuard">防御</button>
+      <button class="cmdBtn warn" id="cmdRepair">応急修理</button>
+      <button class="cmdBtn" id="cmdRetreat" style="border-color:var(--dim); color:var(--dim);">撤退する</button>
+    </div>
+    <div id="victoryOverlay">
+      <h2>VICTORY</h2>
+      <div id="victoryStats"></div>
+      <button class="btn" id="victoryContinueBtn">続ける</button>
+    </div>
+  </div>
+
+  <div id="deathOverlay">
+    <h2>SHIP DOWN</h2>
+    <p>船体が限界を迎え、航行不能になった。</p>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button class="btn" id="deathContinueBtn">母船から再開する</button>
+      <button class="btn warn" id="deathNewGameBtn">最初からやり直す</button>
+    </div>
+  </div>
+
+  <div id="introOverlay">
+    <h1>星屑のサルベージャー</h1>
+    <p>宇宙船を操縦し、死骸化した漂流船やステーションから素材を回収せよ。<br>
+    索敵マーカーに触れると戦闘画面に切り替わる。距離と狙う相手を見極めて戦え。<br>
+    後衛は前衛に守られている――まずは前衛を潰すのがセオリーだ。</p>
+    <div id="introButtons">
+      <button class="btn" id="loadGameBtn" style="display:none;">つづきから</button>
+      <button class="btn" id="newGameBtn">はじめから</button>
+      <button class="btn" id="testModeBtn" style="border-color:var(--dim); color:var(--dim);">テストモードで開始</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============ 基本セットアップ ============ */
+const wrap = document.getElementById('wrap');
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W=800,H=500;
+function resize(){
+  const r = wrap.getBoundingClientRect();
+  W = canvas.width = Math.floor(r.width);
+  H = canvas.height = Math.floor(r.height);
+}
+window.addEventListener('resize', resize);
+
+/* ============ サウンド(WebAudio、効果音を簡易合成) ============ */
+let audioCtx = null;
+function getAudioCtx(){
+  if(!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+function beep(freq, duration, type, gainVal, freqEnd){
+  try{
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type||'square';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    if(freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, ctx.currentTime+duration);
+    gain.gain.setValueAtTime(gainVal||0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+duration);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime+duration);
+  }catch(e){}
+}
+function sfxFire(kinetic){ kinetic ? beep(220,0.09,'square',0.14,90) : beep(760,0.07,'sine',0.1,320); }
+function sfxHit(){ beep(190,0.12,'sawtooth',0.16,70); }
+function sfxExplosion(){ beep(140,0.35,'sawtooth',0.22,35); }
+function sfxWarn(){ beep(440,0.13,'square',0.15); setTimeout(()=>beep(440,0.13,'square',0.15),150); }
+function sfxClick(){ beep(600,0.05,'sine',0.08); }
+function sfxEvade(){ beep(900,0.07,'sine',0.09,1300); }
+function sfxVictory(){ beep(520,0.12,'sine',0.14,780); setTimeout(()=>beep(780,0.16,'sine',0.14,1040),110); }
+
+/* ============ 戦闘エフェクト(ビーム・ダメージ数値・フラッシュ・爆発・画面シェイク) ============ */
+let battleEffects = [];
+let shakeTime = 0, shakeMag = 0;
+function triggerShake(mag, dur){ shakeTime = dur; shakeMag = Math.max(shakeMag, mag); }
+function spawnDamageText(x,y,text,color){
+  battleEffects.push({type:'text', x, y, text, color, life:1, maxLife:1, vy:-32});
+}
+function spawnBeam(x1,y1,x2,y2,color,kinetic){
+  battleEffects.push({type:'beam', x1,y1,x2,y2, color, kinetic, life:1, maxLife:1});
+  battleEffects.push({type:'muzzle', x:x1, y:y1, color, life:1, maxLife:1});
+}
+function spawnExplosion(x,y,color){
+  const particles = [];
+  for(let i=0;i<16;i++){
+    const ang = Math.random()*Math.PI*2, spd = 50+Math.random()*100;
+    particles.push({x:0,y:0,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd, size:2+Math.random()*2.5, white:Math.random()<0.4});
+  }
+  battleEffects.push({type:'explosion', x, y, color, life:1, maxLife:1, particles});
+  battleEffects.push({type:'shockwave', x, y, color, life:1, maxLife:1});
+  triggerShake(6, 0.25);
+}
+function updateBattleEffects(dt){
+  if(shakeTime>0) shakeTime = Math.max(0, shakeTime-dt); else shakeMag = 0;
+  battleEffects.forEach(e=>{
+    const speedDiv = e.type==='explosion'?0.6 : e.type==='shockwave'?0.4 : e.type==='beam'?0.12 : e.type==='muzzle'?0.1 : 0.9;
+    e.life -= dt/speedDiv;
+    if(e.type==='text') e.y += e.vy*dt;
+    if(e.type==='explosion') e.particles.forEach(p=>{ p.x+=p.vx*dt; p.y+=p.vy*dt; });
+  });
+  battleEffects = battleEffects.filter(e=>e.life>0);
+}
+function drawBattleEffects(c){
+  battleEffects.forEach(e=>{
+    const alpha = Math.max(0, Math.min(1, e.life));
+    if(e.type==='text'){
+      c.save();
+      c.globalAlpha = alpha;
+      c.fillStyle = e.color;
+      c.font = 'bold 13px sans-serif';
+      c.textAlign='center';
+      c.fillText(e.text, e.x, e.y);
+      c.restore();
+    } else if(e.type==='beam'){
+      c.save();
+      c.globalAlpha = alpha;
+      c.strokeStyle = e.color;
+      c.lineWidth = e.kinetic ? 2 : 3;
+      c.shadowColor = e.color; c.shadowBlur = e.kinetic ? 4 : 10;
+      if(e.kinetic){
+        // 実弾: 短い破線のトレーサー
+        c.setLineDash([6,5]);
+      }
+      c.beginPath(); c.moveTo(e.x1,e.y1); c.lineTo(e.x2,e.y2); c.stroke();
+      c.setLineDash([]);
+      c.restore();
+    } else if(e.type==='muzzle'){
+      c.save();
+      c.globalAlpha = alpha;
+      c.fillStyle = '#ffffff';
+      c.shadowColor = e.color; c.shadowBlur = 12;
+      c.beginPath(); c.arc(e.x, e.y, 4*alpha+2, 0, 7); c.fill();
+      c.restore();
+    } else if(e.type==='shockwave'){
+      c.save();
+      c.globalAlpha = alpha*0.6;
+      c.strokeStyle = e.color||'#ffcf5c';
+      c.lineWidth = 2;
+      const r = (1-alpha)*26 + 4;
+      c.beginPath(); c.arc(e.x, e.y, r, 0, 7); c.stroke();
+      c.restore();
+    } else if(e.type==='explosion'){
+      c.save();
+      c.globalAlpha = alpha;
+      e.particles.forEach(p=>{
+        c.fillStyle = p.white ? '#ffffff' : (e.color||'#ffcf5c');
+        c.beginPath(); c.arc(e.x+p.x, e.y+p.y, p.size, 0, 7); c.fill();
+      });
+      c.restore();
+    }
+  });
+}
+
+const toastWrap = document.getElementById('toastWrap');
+function toast(msg, color){
+  const el = document.createElement('div');
+  el.className='toast';
+  el.textContent = msg;
+  if(color) el.style.color = color;
+  toastWrap.appendChild(el);
+  setTimeout(()=>el.remove(), 1600);
+}
+
+/* ============ データ定義 ============ */
+// band: 0=近距離 1=中距離 2=遠距離。 bands配列はその武器が「有効」な距離帯。
+const WEAPONS = {
+  blaster1:  {id:'blaster1', name:'ブラスター Mk1',   type:'beam',    bands:[0,1], damage:8,  energyCost:2, breakChance:0.05, accuracy:0.85, powerCost:3},
+  shotgun1:  {id:'shotgun1', name:'散弾キャノン',       type:'kinetic', bands:[0],   damage:15, ammoCost:1, maxAmmo:10, breakChance:0.09, accuracy:0.90, powerCost:3},
+  railgun1:  {id:'railgun1', name:'レールガン',         type:'kinetic', bands:[1,2], damage:17, ammoCost:1, maxAmmo:6,  breakChance:0.10, accuracy:0.70, powerCost:5},
+  blaster2:  {id:'blaster2', name:'ブラスター Mk2',     type:'beam',    bands:[0,1], damage:13, energyCost:2, breakChance:0.04, accuracy:0.85, powerCost:4},
+  lance1:    {id:'lance1',   name:'プラズマランス',     type:'beam',    bands:[1,2], damage:23, energyCost:6, breakChance:0.07, accuracy:0.72, powerCost:7},
+  pulse1:    {id:'pulse1',   name:'パルスレーザー',     type:'beam',    bands:[0,1], damage:6,  energyCost:1, breakChance:0.03, accuracy:0.92, powerCost:2},
+  ion1:      {id:'ion1',     name:'イオンキャノン',     type:'beam',    bands:[1,2], damage:19, energyCost:5, breakChance:0.06, accuracy:0.78, powerCost:6},
+  gatling1:  {id:'gatling1', name:'ガトリング砲',       type:'kinetic', bands:[0],   damage:11, ammoCost:1, maxAmmo:16, breakChance:0.07, accuracy:0.88, powerCost:4},
+  sniper1:   {id:'sniper1',  name:'スナイパーレール',   type:'kinetic', bands:[2],   damage:30, ammoCost:2, maxAmmo:4,  breakChance:0.12, accuracy:0.60, powerCost:6},
+};
+const GENERATORS = {
+  gen1: {id:'gen1', name:'標準ジェネレーター', capacity:8},
+  gen2: {id:'gen2', name:'強化ジェネレーター', capacity:12},
+  gen3: {id:'gen3', name:'大出力ジェネレーター', capacity:16},
+};
+const DRONE_SQUADRONS = {
+  scout1:  {id:'scout1',  name:'索敵ドローン隊', type:'attack', damage:3,  accuracy:0.80, powerCost:2, energyCost:1, pierce:false, desc:'軽量・低出力。距離を問わず攻撃可能'},
+  fighter1:{id:'fighter1',name:'戦闘機隊',       type:'attack', damage:7,  accuracy:0.75, powerCost:4, energyCost:2, pierce:false, desc:'バランス型の艦載機隊'},
+  bomber1: {id:'bomber1', name:'爆撃機隊',       type:'attack', damage:11, accuracy:0.65, powerCost:5, energyCost:3, pierce:true,  desc:'鈍重だが高火力、実体弾でシールド無視'},
+  aa1:     {id:'aa1',     name:'防空ドローン隊', type:'defense', interceptChance:0.35, powerCost:3, energyCost:0, desc:'攻撃せず、敵弾を自動迎撃する防御特化艦載機隊(距離を問わず展開)'},
+};
+function currentPowerUsage(){
+  let sum = player.equippedWeapons.reduce((s,wid)=> s + (WEAPONS[wid].powerCost||0), 0);
+  sum += player.droneSquadronIds.reduce((s,did)=> s + (DRONE_SQUADRONS[did].powerCost||0), 0);
+  return sum;
+}
+function currentPowerCapacity(){
+  return GENERATORS[player.generatorId].capacity;
+}
+function droneStrengthOf(did){ return player.droneStrengths[did]!==undefined ? player.droneStrengths[did] : 100; }
+function ensureDroneStrength(did){ if(player.droneStrengths[did]===undefined) player.droneStrengths[did]=100; }
+function droneState(did){
+  if(!battle.droneState[did]) battle.droneState[did] = {turnsActive:0, targetId:null};
+  return battle.droneState[did];
+}
+function weaponResourceLabel(w){
+  if(w.type==='beam') return '消費E'+w.energyCost;
+  const cur = player.weaponAmmo[w.id] ?? w.maxAmmo;
+  return '残弾'+cur+'/'+w.maxAmmo;
+}
+function ensureAmmo(wid){
+  const w = WEAPONS[wid];
+  if(w.type==='kinetic' && player.weaponAmmo[wid]===undefined) player.weaponAmmo[wid] = w.maxAmmo;
+}
+const ARMORS = {
+  hull1: {id:'hull1', name:'標準船体', hullBonus:0, evasionBonus:0, mobility:2},
+  hull2: {id:'hull2', name:'強化装甲板', hullBonus:45, evasionBonus:-0.05, mobility:1},
+  hull3: {id:'hull3', name:'軽量チタン殻', hullBonus:18, evasionBonus:0.10, mobility:3},
+};
+const MODULES = {
+  none: {id:'none', name:'なし', energyBonus:0, regenBonus:0},
+  cap1: {id:'cap1', name:'補助エネルギーキャパシタ', energyBonus:20, regenBonus:0},
+  reg1: {id:'reg1', name:'高効率リアクター', energyBonus:0, regenBonus:2.5},
+};
+const RECIPES = [
+  {id:'blaster2', type:'weapon', name:'ブラスター Mk2', cost:{scrap:6, circuit:3}, desc:'近〜中距離向けの威力アップ型'},
+  {id:'lance1',   type:'weapon', name:'プラズマランス', cost:{circuit:6, core:2}, desc:'中〜遠距離向けの重武装'},
+  {id:'pulse1',   type:'weapon', name:'パルスレーザー', cost:{scrap:4, circuit:2}, desc:'低威力・低消費・高命中の近~中距離ビーム'},
+  {id:'ion1',     type:'weapon', name:'イオンキャノン', cost:{circuit:8, core:3}, desc:'中~遠距離の高火力ビーム'},
+  {id:'gatling1', type:'weapon', name:'ガトリング砲', cost:{scrap:8, alloy:5}, desc:'近距離特化、弾数が多く連射が効く実弾兵器'},
+  {id:'sniper1',  type:'weapon', name:'スナイパーレール', cost:{core:6, alloy:8}, desc:'遠距離専用、超高威力だが命中率が低くコストが重い実弾兵器'},
+  {id:'hull2',    type:'armor',  name:'強化装甲板', cost:{alloy:6, scrap:4}, desc:'船体HP+45'},
+  {id:'hull3',    type:'armor',  name:'軽量チタン殻', cost:{alloy:4, circuit:2}, desc:'軽量化、扱いやすい装甲'},
+  {id:'cap1',     type:'module', name:'補助エネルギーキャパシタ', cost:{circuit:5, core:1}, desc:'最大エネルギー+20'},
+  {id:'reg1',     type:'module', name:'高効率リアクター', cost:{core:3, alloy:2}, desc:'エネルギー回復速度アップ'},
+  {id:'gen2',     type:'generator', name:'強化ジェネレーター', cost:{circuit:8, alloy:6}, desc:'出力上限12(標準比+4)、重武装を組み合わせやすくなる'},
+  {id:'gen3',     type:'generator', name:'大出力ジェネレーター', cost:{core:8, alloy:10}, desc:'出力上限16(標準比+8)、重武装2門を余裕を持って積める'},
+  {id:'scout1',   type:'drone', name:'索敵ドローン隊', cost:{scrap:6, circuit:4}, desc:'空母機能。距離を問わず攻撃できる艦載機隊(軽量)'},
+  {id:'fighter1', type:'drone', name:'戦闘機隊', cost:{circuit:6, alloy:4}, desc:'空母機能。距離を問わず攻撃できる艦載機隊(バランス型)'},
+  {id:'bomber1',  type:'drone', name:'爆撃機隊', cost:{alloy:8, core:4}, desc:'空母機能。距離を問わず攻撃、実体弾でシールド無視'},
+  {id:'aa1',      type:'drone', name:'防空ドローン隊', cost:{circuit:7, alloy:5}, desc:'空母機能(防御型)。攻撃はせず、敵弾を自動迎撃する'},
+];
+const MAT_NAMES = {scrap:'残骸くず', circuit:'回路', alloy:'合金', core:'コア'};
+const SELL_PRICES = {scrap:2, circuit:4, alloy:5, core:9};
+const BUY_PRICES = {scrap:5, circuit:9, alloy:11, core:20};
+const BUY_LOT = 5;
+const REPAIR_KIT_COST = 60;
+const HULL_UPGRADES = [
+  {level:1, name:'船体補強 Lv1', cost:{scrap:8, alloy:4}, hullBonus:20},
+  {level:2, name:'船体補強 Lv2', cost:{alloy:8, circuit:5}, hullBonus:35},
+  {level:3, name:'船体補強 Lv3', cost:{alloy:10, core:5}, hullBonus:55},
+  {level:4, name:'船体補強 Lv4', cost:{core:9, circuit:10}, hullBonus:80},
+];
+const WEAPON_UPGRADES = [
+  {level:1, name:'武装出力強化 Lv1', cost:{scrap:6, circuit:3}, damageBonus:3},
+  {level:2, name:'武装出力強化 Lv2', cost:{circuit:6, alloy:4}, damageBonus:5},
+  {level:3, name:'武装出力強化 Lv3', cost:{core:4, alloy:6}, damageBonus:8},
+];
+const SHIELD_UPGRADES = [
+  {level:1, name:'シールド発生装置強化 Lv1', cost:{circuit:5, alloy:3}, shieldBonus:15, regenBonus:0.5},
+  {level:2, name:'シールド発生装置強化 Lv2', cost:{alloy:6, core:2}, shieldBonus:20, regenBonus:0.8},
+  {level:3, name:'シールド発生装置強化 Lv3', cost:{core:6, circuit:8}, shieldBonus:30, regenBonus:1.2},
+];
+const EVASION_UPGRADES = [
+  {level:1, name:'機動スラスター強化 Lv1', cost:{alloy:5, scrap:5}, evasionBonus:0.03},
+  {level:2, name:'機動スラスター強化 Lv2', cost:{alloy:8, circuit:4}, evasionBonus:0.04},
+  {level:3, name:'機動スラスター強化 Lv3', cost:{core:5, alloy:6}, evasionBonus:0.05},
+];
+const ACCURACY_UPGRADES = [
+  {level:1, name:'照準システム強化 Lv1', cost:{circuit:4, scrap:4}, accuracyBonus:0.03},
+  {level:2, name:'照準システム強化 Lv2', cost:{circuit:7, core:1}, accuracyBonus:0.04},
+  {level:3, name:'照準システム強化 Lv3', cost:{core:5, circuit:8}, accuracyBonus:0.05},
+];
+const SENSOR_UPGRADES = [
+  {level:1, name:'索敵センサー強化 Lv1', cost:{circuit:5, scrap:4}, radiusBonus:70},
+  {level:2, name:'索敵センサー強化 Lv2', cost:{circuit:8, alloy:4}, radiusBonus:80},
+  {level:3, name:'索敵センサー強化 Lv3', cost:{core:6, circuit:6}, radiusBonus:100},
+];
+function sumLevels(list, level, key){
+  let sum = 0;
+  for(let i=0;i<level;i++){ sum += list[i][key]; }
+  return sum;
+}
+function totalHullUpgradeBonus(){ return sumLevels(HULL_UPGRADES, player.hullLevel, 'hullBonus'); }
+function totalWeaponDamageBonus(){ return sumLevels(WEAPON_UPGRADES, player.weaponLevel, 'damageBonus'); }
+function totalShieldCapBonus(){ return sumLevels(SHIELD_UPGRADES, player.shieldLevel, 'shieldBonus'); }
+function totalShieldRegenBonus(){ return sumLevels(SHIELD_UPGRADES, player.shieldLevel, 'regenBonus'); }
+function totalEvasionUpgradeBonus(){ return sumLevels(EVASION_UPGRADES, player.evasionLevel, 'evasionBonus'); }
+function totalAccuracyBonus(){ return sumLevels(ACCURACY_UPGRADES, player.accuracyLevel, 'accuracyBonus'); }
+function totalSensorBonus(){ return sumLevels(SENSOR_UPGRADES, player.sensorLevel, 'radiusBonus'); }
+const WEAPON_DEGRADE_STAGES = [
+  {stage:0, name:'正常',     dmgMult:1.00, accMult:1.00},
+  {stage:1, name:'軽度損傷', dmgMult:0.80, accMult:0.90},
+  {stage:2, name:'中度損傷', dmgMult:0.55, accMult:0.75},
+  {stage:3, name:'機能停止', dmgMult:0.00, accMult:0.00},
+];
+function effectiveWeaponStats(w){
+  const stage = player.weaponStages[w.id] || 0;
+  const st = WEAPON_DEGRADE_STAGES[Math.min(stage, WEAPON_DEGRADE_STAGES.length-1)];
+  return Object.assign({}, w, {
+    stage,
+    stageName: st.name,
+    damage: Math.max(0, Math.round((w.damage + totalWeaponDamageBonus()) * st.dmgMult)),
+    accuracy: Math.min(0.95, w.accuracy + totalAccuracyBonus()) * st.accMult,
+  });
+}
+function ensureWeaponStage(wid){ if(player.weaponStages[wid]===undefined) player.weaponStages[wid] = 0; }
+const BAND_NAMES = ['近距離','中距離','遠距離'];
+const SHIP_HULLS = {
+  frigate:    {id:'frigate',    name:'フリゲート級(標準)', weaponSlots:2, droneSlots:1, cost:0,    desc:'最初から所持している標準的な小型艦'},
+  cruiser:    {id:'cruiser',    name:'クルーザー級',       weaponSlots:3, droneSlots:1, cost:350,  desc:'武装スロットが1つ増える中型艦'},
+  battleship: {id:'battleship', name:'バトルシップ級',     weaponSlots:4, droneSlots:1, cost:800,  desc:'武装スロットが2つ増える大型艦。出力管理がより重要になる'},
+  carrier:    {id:'carrier',    name:'ドローン空母級',     weaponSlots:1, droneSlots:2, cost:650,  desc:'武装は1門のみだが、艦載機隊を2隊同時に配備できる空母仕様'},
+};
+function maxWeaponSlots(){ return SHIP_HULLS[player.shipHullId].weaponSlots; }
+function maxDroneSlots(){ return SHIP_HULLS[player.shipHullId].droneSlots||1; }
+const MAX_WEAPON_SLOTS = 2; // 後方互換用の表示デフォルト(実際の上限はmaxWeaponSlots()を使用)
+
+const ENEMY_DEFS = {
+  drone:  {name:'廃棄ドローン', maxShield:26, bands:[0,1], damage:6,  weaponType:'beam',    weaponAccuracy:0.75, evasion:0.20, mobility:3, unmanned:true,  drops:[['scrap',1,2,0.9]], color:'#ff8080', creditsReward:6},
+  raider: {name:'漂流レイダー船', maxShield:44, bands:[0,2], damage:8,  weaponType:'kinetic', weaponAccuracy:0.80, evasion:0.12, mobility:2, unmanned:false, drops:[['scrap',1,3,0.7],['circuit',1,1,0.4]], color:'#ff5c5c', creditsReward:14},
+  turret: {name:'防衛タレット', maxShield:58, bands:[1,2], damage:10, weaponType:'kinetic', weaponAccuracy:0.90, evasion:0.02, mobility:0, unmanned:true,  drops:[['circuit',1,2,0.6],['alloy',1,2,0.5]], color:'#ffb84d', creditsReward:18},
+  bot:    {name:'汚染整備ボット', maxShield:36, bands:[0], damage:12, weaponType:'beam',    weaponAccuracy:0.85, evasion:0.08, mobility:1, unmanned:true,  drops:[['alloy',1,2,0.6],['core',1,1,0.25]], color:'#ff6b6b', creditsReward:13},
+  aa_drone: {name:'防空ドローン', maxShield:18, bands:[0,1,2], damage:4, weaponType:'beam', weaponAccuracy:0.70, evasion:0.15, mobility:2, unmanned:true, drops:[['circuit',1,1,0.5]], color:'#5ce1ff', creditsReward:9},
+};
+
+/* ============ プレイヤー状態 ============ */
+const player = {
+  x:120, y:250, tx:120, ty:250,
+  baseSpeed:110,
+  maxHull:100, hull:100,
+  maxShieldBarrier:40, shieldBarrier:40, shieldRegen:5,
+  maxEnergy:50, energy:50, energyRegen:4,
+  equippedWeapons:['blaster1'], ownedWeapons:['blaster1'], weaponAmmo:{}, weaponStages:{blaster1:0},
+  armorId:'hull1', ownedArmors:['hull1'],
+  moduleId:'none', ownedModules:['none'],
+  generatorId:'gen1', ownedGenerators:['gen1'],
+  droneSquadronIds:[], ownedDroneSquadrons:[], droneStrengths:{},
+  shipHullId:'frigate', ownedShipHulls:['frigate'],
+  flashTimer:0,
+  materials:{scrap:0, circuit:0, alloy:0, core:0},
+  credits:50, repairKits:1, hullLevel:0, weaponLevel:0, shieldLevel:0, evasionLevel:0, accuracyLevel:0, sensorLevel:0,
+  facing:1,
+  weaponRegenTimer:0,
+  lastDockPos:{x:80,y:380},
+};
+function currentStats(){
+  const armor = ARMORS[player.armorId];
+  const mod = MODULES[player.moduleId];
+  const maxHull = player.maxHull + armor.hullBonus + totalHullUpgradeBonus();
+  const hullRatio = maxHull>0 ? Math.max(0, player.hull)/maxHull : 1;
+  // シールド発生装置は船体ダメージが蓄積するほど連動して性能が落ちる
+  let shieldMult = 1, shieldStageName = '正常';
+  if(hullRatio < 0.33){ shieldMult = 0.5; shieldStageName = '重度損傷'; }
+  else if(hullRatio < 0.66){ shieldMult = 0.8; shieldStageName = '軽度損傷'; }
+  return {
+    maxHull,
+    maxEnergy: player.maxEnergy + mod.energyBonus,
+    energyRegen: player.energyRegen + mod.regenBonus,
+    maxShieldBarrier: Math.round((player.maxShieldBarrier + totalShieldCapBonus()) * shieldMult),
+    shieldRegen: (player.shieldRegen + totalShieldRegenBonus()) * shieldMult,
+    shieldStageName,
+    evasion: Math.max(0, 0.08 + armor.evasionBonus + totalEvasionUpgradeBonus()),
+    sensorRadius: 110 + totalSensorBonus(),
+    mobility: armor.mobility,
+  };
+}
+function zoneOf(distance){ return distance<3 ? 0 : distance<6 ? 1 : 2; }
+// 被弾処理: まずシールドが吸収し、シールドが尽きたら船体にダメージが通る
+function tryInterceptAttack(attackerName){
+  const defenders = player.droneSquadronIds.filter(did=> DRONE_SQUADRONS[did].type==='defense' && droneStrengthOf(did)>0);
+  for(const did of defenders){
+    const d = DRONE_SQUADRONS[did];
+    const chance = d.interceptChance * (droneStrengthOf(did)/100);
+    if(Math.random() < chance){
+      log(d.name+'が'+attackerName+'の攻撃を迎撃した!', '#8ce89a');
+      spawnDamageText(playerScreenPos.x, playerScreenPos.y-16, '迎撃!', '#8ce89a');
+      sfxHit();
+      rollDroneAttrition(did);
+      return true;
+    }
+  }
+  return false;
+}
+function applyDamageToPlayer(dmg, pierce){
+  if(pierce){
+    // 実体弾: シールドを無視して船体に直接命中
+    player.hull -= dmg;
+    return true;
+  }
+  let remain = dmg;
+  if(player.shieldBarrier > 0){
+    const absorbed = Math.min(player.shieldBarrier, remain);
+    player.shieldBarrier -= absorbed;
+    remain -= absorbed;
+  }
+  let hullHit = false;
+  if(remain > 0){
+    player.hull -= remain;
+    hullHit = true;
+  }
+  return hullHit;
+}
+function saveGame(){
+  try{
+    localStorage.setItem('spaceRpgSave', JSON.stringify({
+      hull:player.hull, shieldBarrier:player.shieldBarrier, energy:player.energy,
+      weaponId:player.equippedWeapons[0], equippedWeapons:player.equippedWeapons, ownedWeapons:player.ownedWeapons,
+      weaponAmmo:player.weaponAmmo, weaponStages:player.weaponStages, lastDockPos:player.lastDockPos,
+      armorId:player.armorId, ownedArmors:player.ownedArmors,
+      moduleId:player.moduleId, ownedModules:player.ownedModules,
+      generatorId:player.generatorId, ownedGenerators:player.ownedGenerators,
+      droneSquadronIds:player.droneSquadronIds, ownedDroneSquadrons:player.ownedDroneSquadrons, droneStrengths:player.droneStrengths,
+      shipHullId:player.shipHullId, ownedShipHulls:player.ownedShipHulls,
+      materials:player.materials, credits:player.credits, repairKits:player.repairKits,
+      hullLevel:player.hullLevel, weaponLevel:player.weaponLevel, shieldLevel:player.shieldLevel,
+      evasionLevel:player.evasionLevel, accuracyLevel:player.accuracyLevel, sensorLevel:player.sensorLevel,
+      clearedSpace: SPACE_ENCOUNTERS.filter(e=>e.cleared).map(e=>e.id),
+      clearedStation: STATION_ENCOUNTERS.filter(e=>e.cleared).map(e=>e.id),
+    }));
+  }catch(e){}
+}
+function loadGame(){
+  try{
+    const raw = localStorage.getItem('spaceRpgSave');
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    Object.assign(player, {
+      hull:d.hull, shieldBarrier: (d.shieldBarrier!==undefined? d.shieldBarrier : player.maxShieldBarrier), energy:d.energy,
+      equippedWeapons:(d.equippedWeapons||[d.weaponId||'blaster1']), ownedWeapons:d.ownedWeapons,
+      weaponAmmo:(d.weaponAmmo||{}), weaponStages:(d.weaponStages||{}), lastDockPos:(d.lastDockPos||{x:80,y:380}),
+      armorId:d.armorId, ownedArmors:d.ownedArmors, moduleId:d.moduleId, ownedModules:d.ownedModules,
+      generatorId:(d.generatorId||'gen1'), ownedGenerators:(d.ownedGenerators||['gen1']),
+      droneSquadronIds:(d.droneSquadronIds || (d.droneSquadronId?[d.droneSquadronId]:[])), ownedDroneSquadrons:(d.ownedDroneSquadrons||[]),
+      droneStrengths:(d.droneStrengths || (d.droneSquadronId? {[d.droneSquadronId]: (d.droneStrength!==undefined?d.droneStrength:100)} : {})),
+      shipHullId:(d.shipHullId||'frigate'), ownedShipHulls:(d.ownedShipHulls||['frigate']),
+      materials:d.materials, credits:(d.credits||0), repairKits:(d.repairKits||0), hullLevel:(d.hullLevel||0),
+      weaponLevel:(d.weaponLevel||0), shieldLevel:(d.shieldLevel||0), evasionLevel:(d.evasionLevel||0), accuracyLevel:(d.accuracyLevel||0), sensorLevel:(d.sensorLevel||0),
+    });
+    (d.clearedSpace||[]).forEach(id=>{ const e=SPACE_ENCOUNTERS.find(x=>x.id===id); if(e) e.cleared=true; });
+    (d.clearedStation||[]).forEach(id=>{ const e=STATION_ENCOUNTERS.find(x=>x.id===id); if(e) e.cleared=true; });
+    player.ownedWeapons.forEach(wid=>{ ensureWeaponStage(wid); ensureAmmo(wid); });
+  }catch(e){}
+}
+
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+
+/* ============ ゾーン / マップ ============ */
+let zone = 'space'; // 'space' | 'station'
+let panelOpen = false;
+let inBattle = false;
+
+const spaceObjs = { dock:{x:80,y:400,r:22}, stationGate:{x:700,y:120,r:22} };
+const SPACE_ENCOUNTERS = [
+  {id:'sp1', x:340, y:170, cleared:false, enemies:[{type:'drone',row:'front'}]},
+  {id:'sp2', x:520, y:340, cleared:false, enemies:[{type:'drone',row:'front'},{type:'raider',row:'back'}]},
+  {id:'sp3', x:640, y:220, cleared:false, enemies:[{type:'raider',row:'front'}]},
+  {id:'sp4', x:460, y:120, cleared:false, enemies:[{type:'aa_drone',row:'escort'},{type:'raider',row:'front'}]},
+];
+const stationExit = {x:60,y:60,r:22};
+const STATION_ENCOUNTERS = [
+  {id:'st1', x:260, y:160, cleared:false, enemies:[{type:'bot',row:'front'}]},
+  {id:'st2', x:460, y:320, cleared:false, enemies:[{type:'bot',row:'front'},{type:'turret',row:'back'}]},
+  {id:'st3', x:620, y:150, cleared:false, enemies:[{type:'bot',row:'front'},{type:'turret',row:'back'}]},
+  {id:'st4', x:730, y:380, cleared:false, enemies:[{type:'raider',row:'front'},{type:'turret',row:'back'}]},
+  {id:'st5', x:400, y:200, cleared:false, enemies:[{type:'aa_drone',row:'escort'},{type:'turret',row:'back'}]},
+];
+/* ============ ランダムエンカウント(索敵範囲外だと不意打ち) ============ */
+let spaceRandomEncounters = [];
+let stationRandomEncounters = [];
+let randomEncounterTimer = 8 + Math.random()*6;
+const RANDOM_ENCOUNTER_CAP = 2;
+const RANDOM_POOL = { space:['drone','raider'], station:['bot','turret'] };
+function spawnRandomEncounter(){
+  const list = zone==='space' ? spaceRandomEncounters : stationRandomEncounters;
+  if(list.length >= RANDOM_ENCOUNTER_CAP) return;
+  const pool = RANDOM_POOL[zone];
+  const enemyCount = Math.random()<0.35 ? 2 : 1;
+  const enemies = [];
+  for(let i=0;i<enemyCount;i++){
+    const type = pool[Math.floor(Math.random()*pool.length)];
+    enemies.push({type, row: i===0?'front':'back'});
+  }
+  let ex, ey, tries=0;
+  do{
+    ex = 40 + Math.random()*(W-80);
+    ey = 40 + Math.random()*(H-80);
+    tries++;
+  } while(dist({x:ex,y:ey}, player) < 180 && tries<10);
+  list.push({id:'rand'+Date.now()+Math.random(), x:ex, y:ey, cleared:false, isRandom:true, everSeen:false, enemies});
+}
+function updateRandomEncounters(dt){
+  randomEncounterTimer -= dt;
+  if(randomEncounterTimer <= 0){
+    randomEncounterTimer = 8 + Math.random()*6;
+    if(Math.random() < 0.6) spawnRandomEncounter();
+  }
+  const st = currentStats();
+  const list = zone==='space' ? spaceRandomEncounters : stationRandomEncounters;
+  list.forEach(enc=>{
+    if(!enc.everSeen && dist(player, enc) <= st.sensorRadius) enc.everSeen = true;
+  });
+}
+
+let salvageNodes = [];
+function buildStation(){
+  salvageNodes = [
+    {x:200, y:300, r:14, collected:false},
+    {x:400, y:420, r:14, collected:false},
+    {x:560, y:220, r:14, collected:false},
+    {x:730, y:280, r:14, collected:false},
+  ];
+}
+buildStation();
+
+/* ============ 入力: マップ移動 ============ */
+function getPos(e){
+  const r = canvas.getBoundingClientRect();
+  const cx = (e.touches? e.touches[0].clientX : e.clientX) - r.left;
+  const cy = (e.touches? e.touches[0].clientY : e.clientY) - r.top;
+  return {x: cx * (W/r.width), y: cy * (H/r.height)};
+}
+canvas.addEventListener('mousedown', onClick);
+canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); onClick(e); }, {passive:false});
+function onClick(e){
+  if(panelOpen || inBattle) return;
+  const p = getPos(e);
+  player.tx = Math.max(14, Math.min(W-14, p.x));
+  player.ty = Math.max(14, Math.min(H-14, p.y));
+  if(zone==='station'){
+    for(const n of salvageNodes){
+      if(!n.collected && dist(p,n) < n.r+10){
+        player.tx = n.x; player.ty = n.y;
+        n.pendingCollect = true;
+      }
+    }
+  }
+}
+
+/* ============ ボタン: マップ操作 ============ */
+const dockBtn = document.getElementById('dockBtn');
+const enterBtn = document.getElementById('enterBtn');
+const exitBtn = document.getElementById('exitBtn');
+const zoneLabel = document.getElementById('zoneLabel');
+
+dockBtn.onclick = ()=>{ player.lastDockPos = {x:player.x, y:player.y}; openPanel(); };
+enterBtn.onclick = ()=>{
+  zone='station'; player.x=player.tx=60; player.y=player.ty=250;
+  zoneLabel.textContent='漂流ステーション内部';
+  toast('漂流ステーションに進入した','#ffcf5c');
+};
+exitBtn.onclick = ()=>{
+  zone='space'; player.x=player.tx=650; player.y=player.ty=140;
+  zoneLabel.textContent='SPACE SECTOR';
+  toast('宙域へ帰還した','#4fd6ff');
+};
+const statusBtn = document.getElementById('statusBtn');
+const statusOverlay = document.getElementById('statusOverlay');
+statusBtn.onclick = ()=>{
+  if(inBattle || panelOpen) return;
+  renderStatusOverlay();
+  statusOverlay.classList.add('show');
+};
+document.getElementById('closeStatus').onclick = ()=> statusOverlay.classList.remove('show');
+function renderStatusOverlay(){
+  const st = currentStats();
+  const wrap = document.getElementById('statusContent');
+  const ar = ARMORS[player.armorId];
+  const md = MODULES[player.moduleId];
+  const gen = GENERATORS[player.generatorId];
+  const hull = SHIP_HULLS[player.shipHullId];
+  const weaponsInfo = player.equippedWeapons.map(wid=>{
+    const w = effectiveWeaponStats(WEAPONS[wid]);
+    return `${w.name}(威力${w.damage}/命中${Math.round(w.accuracy*100)}%/${weaponResourceLabel(w)}${w.stage>0?'、'+w.stageName:''})`;
+  }).join('<br>') || 'なし';
+  const droneInfo = player.droneSquadronIds.length>0
+    ? player.droneSquadronIds.map(did=>DRONE_SQUADRONS[did].name+'(戦力'+droneStrengthOf(did)+'%)').join('<br>')
+    : '未配備';
+  const matInfo = Object.entries(player.materials).map(([m,n])=>MAT_NAMES[m]+' x'+n).join(' / ');
+  wrap.innerHTML = `
+    <div class="statBlock"><h3>船体</h3>
+      船体クラス: ${hull.name}(武装${hull.weaponSlots}門)<br>
+      船体HP: ${Math.ceil(player.hull)}/${st.maxHull}<br>
+      シールド: ${Math.ceil(player.shieldBarrier)}/${st.maxShieldBarrier}(自然回復${st.shieldRegen.toFixed(1)}/秒、${st.shieldStageName})<br>
+      エネルギー: ${Math.ceil(player.energy)}/${st.maxEnergy}(回復${st.energyRegen.toFixed(1)}/秒)<br>
+      回避率: ${Math.round(st.evasion*100)}% / 機動力: ${st.mobility} / 索敵範囲: ${st.sensorRadius}px
+    </div>
+    <div class="statBlock"><h3>装備</h3>
+      装甲: ${ar.name}(船体HP+${ar.hullBonus})<br>
+      モジュール: ${md.name}<br>
+      ジェネレーター: ${gen.name}(出力 ${currentPowerUsage()}/${currentPowerCapacity()})<br>
+      武装: ${weaponsInfo}<br>
+      艦載機: ${droneInfo}
+    </div>
+    <div class="statBlock"><h3>強化段階</h3>
+      船体強化 Lv${player.hullLevel} / 武装出力強化 Lv${player.weaponLevel} / シールド強化 Lv${player.shieldLevel}<br>
+      回避強化 Lv${player.evasionLevel} / 命中強化 Lv${player.accuracyLevel} / 索敵強化 Lv${player.sensorLevel}
+    </div>
+    <div class="statBlock"><h3>資産</h3>
+      資金: ${player.credits} クレジット<br>
+      素材: ${matInfo}<br>
+      応急修理キット: ${player.repairKits}個
+    </div>`;
+}
+
+
+/* ============ 母船パネル ============ */
+const panelEl = document.getElementById('panel');
+document.getElementById('closePanel').onclick = ()=> closePanel();
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick = ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tabContent').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-'+t.dataset.tab).classList.add('active');
+    if(t.dataset.tab==='equip') renderEquip();
+    if(t.dataset.tab==='craft') renderCraft();
+    if(t.dataset.tab==='trade') renderTrade();
+    if(t.dataset.tab==='repair') renderRepair();
+    if(t.dataset.tab==='hull') renderHull();
+    if(t.dataset.tab==='upgrade') renderUpgrade();
+  };
+});
+function repairCost(){
+  const st = currentStats();
+  const hullMissingRatio = Math.max(0, 1 - player.hull/st.maxHull);
+  const weaponDamageSum = player.ownedWeapons.reduce((s,wid)=> s+(player.weaponStages[wid]||0), 0);
+  const droneMissing = player.droneSquadronIds.reduce((s,did)=> s + Math.max(0,(100-droneStrengthOf(did)))/100, 0);
+  return Math.round(15 + hullMissingRatio*50 + weaponDamageSum*10 + droneMissing*15);
+}
+function renderRepair(){
+  const wrapR = document.getElementById('tab-repair');
+  wrapR.innerHTML='';
+  const cost = repairCost();
+  const afford = player.credits >= cost;
+  const c = document.createElement('div');
+  c.className='card';
+  c.innerHTML = `<div class="card-title"><span class="name">全系統オーバーホール</span></div>
+    <div class="card-sub">シールド・エネルギー全回復、武装の故障状態を完全に修理、艦載機隊も再編成します。<br>費用: <span style="color:${afford?'#4fd6ff':'#ff6b6b'}">${cost} クレジット</span>(所持 ${player.credits})</div>
+    <div class="card-actions"><button class="smallbtn" id="fullRepairBtn" ${afford?'':'disabled'}>実行する</button></div>`;
+  wrapR.appendChild(c);
+  document.getElementById('fullRepairBtn').onclick = ()=>{
+    const cost2 = repairCost();
+    if(player.credits < cost2) return;
+    player.credits -= cost2;
+    const st = currentStats();
+    player.hull = st.maxHull;
+    player.shieldBarrier = st.maxShieldBarrier;
+    player.energy = st.maxEnergy;
+    player.ownedWeapons.forEach(wid=>{
+      player.weaponStages[wid] = 0;
+      if(WEAPONS[wid].type==='kinetic') player.weaponAmmo[wid] = WEAPONS[wid].maxAmmo;
+    });
+    player.lastDockPos = {x:player.x, y:player.y};
+    player.ownedDroneSquadrons.forEach(did=>{ player.droneStrengths[did] = 100; });
+    toast('全系統オーバーホール完了(-'+cost2+'クレジット)','#4fd6ff');
+    renderRepair(); updateHud(); saveGame();
+  };
+}
+function openPanel(){ panelOpen = true; panelEl.classList.add('show'); renderRepair(); renderEquip(); renderCraft(); renderTrade(); renderUpgrade(); renderHull(); }
+function closePanel(){ panelOpen = false; panelEl.classList.remove('show'); }
+
+function renderEquip(){
+  const wrapE = document.getElementById('tab-equip');
+  wrapE.innerHTML='';
+  wrapE.appendChild(equipSection('ジェネレーター', player.ownedGenerators, GENERATORS, player.generatorId, (id)=>{
+    const newCap = GENERATORS[id].capacity;
+    if(currentPowerUsage() > newCap){
+      toast('現在の装備武装の消費電力('+currentPowerUsage()+')が出力上限('+newCap+')を超えます。先に武装を外してください', '#ff6b6b');
+      return;
+    }
+    player.generatorId = id; renderEquip(); updateHud(); saveGame();
+  }, g=>`出力上限: ${g.capacity}`));
+  wrapE.appendChild(renderWeaponEquipSection());
+  wrapE.appendChild(renderDroneEquipSection());
+  wrapE.appendChild(equipSection('装甲', player.ownedArmors, ARMORS, player.armorId, (id)=>{
+    player.armorId = id; renderEquip(); updateHud(); saveGame();
+  }, a=>`船体HP+${a.hullBonus} / 回避${a.evasionBonus>=0?'+':''}${Math.round(a.evasionBonus*100)}% / 機動力${a.mobility}(1ターンに動ける距離)`));
+  wrapE.appendChild(equipSection('モジュール', player.ownedModules, MODULES, player.moduleId, (id)=>{
+    player.moduleId = id; renderEquip(); updateHud(); saveGame();
+  }, m=>`最大E+${m.energyBonus} / 回復+${m.regenBonus}`));
+}
+function renderDroneEquipSection(){
+  const box = document.createElement('div');
+  const h = document.createElement('div');
+  h.style.cssText='color:var(--gold);font-size:12px;margin:6px 0 2px;';
+  h.textContent = `艦載機(空母機能・距離を問わず攻撃可能、最大${maxDroneSlots()}隊)`;
+  box.appendChild(h);
+  const note = document.createElement('div');
+  note.style.cssText = 'font-size:11px;color:var(--dim);margin-bottom:6px;';
+  note.textContent = '戦闘で被弾すると消耗品として戦力(%)が減っていく。母船のオーバーホールで100%に再編成できる。';
+  box.appendChild(note);
+  if(player.ownedDroneSquadrons.length===0){
+    const empty = document.createElement('div');
+    empty.style.cssText = 'font-size:11px;color:var(--dim);margin-bottom:6px;';
+    empty.textContent = 'まだ艦載機隊を所持していません。クラフトタブで作成できます。';
+    box.appendChild(empty);
+    return box;
+  }
+  player.ownedDroneSquadrons.forEach(did=>{
+    const d = DRONE_SQUADRONS[did];
+    const equipped = player.droneSquadronIds.includes(did);
+    const strength = droneStrengthOf(did);
+    const c = document.createElement('div');
+    c.className='card';
+    const statLine = d.type==='defense'
+      ? `迎撃率: <b>${Math.round(d.interceptChance*100)}%</b> / 出力: <b>${d.powerCost}</b> / 攻撃はしない(防御専用)`
+      : `威力: <b>${d.damage}</b> / 命中率: <b>${Math.round(d.accuracy*100)}%</b> / 出力: <b>${d.powerCost}</b> / 消費E: <b>${d.energyCost}</b> / 有効距離: <b style="color:var(--accent)">制限なし(全距離)</b>${d.pierce?'<br>属性: <span style="color:#ff6b6b">実体弾(シールド貫通)</span>':''}`;
+    c.innerHTML = `<div class="card-title"><span class="name">${d.name}</span><span style="color:var(--dim)">出力${d.powerCost}</span></div>
+      <div class="card-sub">${d.desc}<br>
+        ${statLine}${equipped?'<br>現在の戦力: <span style="color:'+(strength<=30?'#ff6b6b':'#8ce89a')+'">'+strength+'%</span>('+(d.type==='defense'?'迎撃率':'命中率')+'に補正)':''}</div>
+      <div class="card-actions"><button class="smallbtn ${equipped?'equipped':''}">${equipped?'配備中(降ろす)':'配備する'}</button></div>`;
+    c.querySelector('button').onclick = ()=>{
+      if(equipped){
+        player.droneSquadronIds = player.droneSquadronIds.filter(x=>x!==did);
+      } else {
+        if(player.droneSquadronIds.length >= maxDroneSlots()){
+          toast('艦載機スロットがいっぱいです('+maxDroneSlots()+'隊まで)', '#ff6b6b');
+          return;
+        }
+        if(currentPowerUsage() + d.powerCost > currentPowerCapacity()){
+          toast('出力上限を超えるため配備できません(ジェネレーター強化が必要)', '#ff6b6b');
+          return;
+        }
+        ensureDroneStrength(did);
+        player.droneSquadronIds.push(did);
+      }
+      renderEquip(); updateHud(); saveGame();
+    };
+    box.appendChild(c);
+  });
+  return box;
+}
+function renderWeaponEquipSection(){
+  const box = document.createElement('div');
+  const h = document.createElement('div');
+  h.style.cssText='color:var(--gold);font-size:12px;margin:6px 0 2px;';
+  h.textContent = `武装(最大${maxWeaponSlots()}門まで同時装備・同時発射)`;
+  box.appendChild(h);
+  const powerRow = document.createElement('div');
+  const usage = currentPowerUsage(), cap = currentPowerCapacity();
+  powerRow.style.cssText = 'font-size:12px;margin-bottom:6px;color:'+(usage>cap?'#ff6b6b':'var(--accent)')+';';
+  powerRow.textContent = '出力: '+usage+' / '+cap+'('+GENERATORS[player.generatorId].name+')';
+  box.appendChild(powerRow);
+  player.ownedWeapons.forEach(wid=>{
+    const w = effectiveWeaponStats(WEAPONS[wid]);
+    const equipped = player.equippedWeapons.includes(wid);
+    const wouldExceed = !equipped && (usage + WEAPONS[wid].powerCost > cap);
+    const c = document.createElement('div');
+    c.className='card';
+    c.innerHTML = `<div class="card-title"><span class="name">${w.name}</span><span style="color:${wouldExceed?'#ff6b6b':'var(--dim)'}">出力${WEAPONS[wid].powerCost}</span></div>
+      <div class="card-sub">有効距離: ${w.bands.map(b=>BAND_NAMES[b]).join('/')} / 威力${w.damage} / 命中${Math.round(w.accuracy*100)}% / ${weaponResourceLabel(w)}${w.stage>0?' / <span style="color:#ff6b6b">'+w.stageName+'</span>':''}</div>
+      <div class="card-actions"><button class="smallbtn ${equipped?'equipped':''}" ${wouldExceed?'disabled':''}>${equipped?'装備中(外す)':(wouldExceed?'出力不足':'装備する')}</button></div>`;
+    c.querySelector('button').onclick = ()=>{
+      if(equipped){
+        if(player.equippedWeapons.length<=1){ toast('最低1門は装備が必要です', '#ff6b6b'); return; }
+        player.equippedWeapons = player.equippedWeapons.filter(x=>x!==wid);
+      } else {
+        if(player.equippedWeapons.length >= maxWeaponSlots()){
+          toast('装備枠がいっぱいです('+maxWeaponSlots()+'門まで)', '#ff6b6b');
+          return;
+        }
+        if(currentPowerUsage() + WEAPONS[wid].powerCost > currentPowerCapacity()){
+          toast('出力上限を超えるため装備できません(ジェネレーター強化が必要)', '#ff6b6b');
+          return;
+        }
+        player.equippedWeapons.push(wid);
+      }
+      renderEquip(); updateHud(); saveGame();
+    };
+    box.appendChild(c);
+  });
+  return box;
+}
+function equipSection(title, owned, dict, curId, onPick, sub){
+  const box = document.createElement('div');
+  const h = document.createElement('div');
+  h.style.cssText='color:var(--gold);font-size:12px;margin:6px 0 2px;';
+  h.textContent = title;
+  box.appendChild(h);
+  owned.forEach(id=>{
+    const it = dict[id];
+    const c = document.createElement('div');
+    c.className='card';
+    const equipped = id===curId;
+    c.innerHTML = `<div class="card-title"><span class="name">${it.name}</span></div>
+      <div class="card-sub">${sub(it)}</div>
+      <div class="card-actions"><button class="smallbtn ${equipped?'equipped':''}">${equipped?'装備中':'装備する'}</button></div>`;
+    c.querySelector('button').onclick = ()=>{ if(!equipped) onPick(id); };
+    box.appendChild(c);
+  });
+  return box;
+}
+function renderCraft(){
+  const wrapC = document.getElementById('tab-craft');
+  wrapC.innerHTML='';
+
+  // 所持素材サマリー
+  const summary = document.createElement('div');
+  summary.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;';
+  Object.entries(player.materials).forEach(([k,v])=>{
+    const chip = document.createElement('div');
+    chip.className='matChip';
+    chip.style.cssText='border-color:var(--accent);color:var(--accent);';
+    chip.textContent = MAT_NAMES[k]+' x'+v;
+    summary.appendChild(chip);
+  });
+  wrapC.appendChild(summary);
+
+  RECIPES.forEach(r=>{
+    const ownedList = r.type==='weapon'?player.ownedWeapons: r.type==='armor'?player.ownedArmors: r.type==='generator'?player.ownedGenerators: r.type==='drone'?player.ownedDroneSquadrons: player.ownedModules;
+    const already = ownedList.includes(r.id);
+    const canAfford = Object.entries(r.cost).every(([m,n])=> player.materials[m]>=n);
+    const costStr = Object.entries(r.cost).map(([m,n])=>{
+      const have = player.materials[m]||0;
+      const ok = have>=n;
+      return `<span style="color:${ok?'#4fd6ff':'#ff6b6b'}">${MAT_NAMES[m]} ${have}/${n}</span>`;
+    }).join(' , ');
+    let statLine = '';
+    if(r.type==='drone'){
+      const d = DRONE_SQUADRONS[r.id];
+      statLine = d.type==='defense'
+        ? `<br><span style="color:var(--accent)">迎撃率${Math.round(d.interceptChance*100)}% / 出力${d.powerCost} / 攻撃はしない(防御専用・距離制限なし)</span>`
+        : `<br><span style="color:var(--accent)">威力${d.damage} / 命中${Math.round(d.accuracy*100)}% / 出力${d.powerCost} / 消費E${d.energyCost} / 距離制限なし${d.pierce?' / シールド貫通':''}</span>`;
+    } else if(r.type==='weapon'){
+      const w = WEAPONS[r.id];
+      statLine = `<br><span style="color:var(--accent)">威力${w.damage} / 命中${Math.round(w.accuracy*100)}% / 出力${w.powerCost} / 有効距離: ${w.bands.map(b=>BAND_NAMES[b]).join('・')}</span>`;
+    }
+    const c = document.createElement('div');
+    c.className='card';
+    c.innerHTML = `<div class="card-title"><span class="name">${r.name}</span></div>
+      <div class="card-sub">${r.desc}${statLine}<br>必要素材: ${costStr}</div>
+      <div class="card-actions"><button class="smallbtn" ${already||!canAfford?'disabled':''}>${already?'作成済み':'クラフトする'}</button></div>`;
+    c.querySelector('button').onclick = ()=>{
+      if(already || !canAfford) return;
+      Object.entries(r.cost).forEach(([m,n])=> player.materials[m]-=n);
+      if(r.type==='weapon'){ player.ownedWeapons.push(r.id); ensureAmmo(r.id); ensureWeaponStage(r.id); }
+      if(r.type==='armor') player.ownedArmors.push(r.id);
+      if(r.type==='module') player.ownedModules.push(r.id);
+      if(r.type==='generator') player.ownedGenerators.push(r.id);
+      if(r.type==='drone') player.ownedDroneSquadrons.push(r.id);
+      toast(r.name+' を作成した','#ffcf5c');
+      renderCraft(); updateMatBar(); saveGame();
+    };
+    wrapC.appendChild(c);
+  });
+}
+
+function renderHull(){
+  const wrapH = document.getElementById('tab-hull');
+  wrapH.innerHTML='';
+  const intro = document.createElement('div');
+  intro.className='card';
+  intro.innerHTML = `<div class="card-sub">船体クラスを乗り換えると武装スロット数が変わる(装備・強化・艦載機は引き継がれる)。所持済みの船体はいつでも無料で切り替え可能。</div>`;
+  wrapH.appendChild(intro);
+  Object.values(SHIP_HULLS).forEach(h=>{
+    const owned = player.ownedShipHulls.includes(h.id);
+    const active = player.shipHullId===h.id;
+    const afford = player.credits >= h.cost;
+    const c = document.createElement('div');
+    c.className='card';
+    let btnLabel, btnDisabled;
+    if(active){ btnLabel='使用中'; btnDisabled=true; }
+    else if(owned){ btnLabel='乗り換える'; btnDisabled=false; }
+    else { btnLabel='購入する('+h.cost+'クレジット)'; btnDisabled=!afford; }
+    c.innerHTML = `<div class="card-title"><span class="name">${h.name}</span>${active?'<span style="color:var(--gold)">使用中</span>':''}</div>
+      <div class="card-sub">${h.desc}<br>武装スロット: <b>${h.weaponSlots}</b> / 艦載機スロット: <b>${h.droneSlots}</b>${h.cost>0?' / 価格: '+h.cost+'クレジット':' / 初期所持'}</div>
+      <div class="card-actions"><button class="smallbtn ${active?'equipped':''}" ${btnDisabled?'disabled':''}>${btnLabel}</button></div>`;
+    c.querySelector('button').onclick = ()=>{
+      if(active) return;
+      if(!owned){
+        if(player.credits < h.cost) return;
+        player.credits -= h.cost;
+        player.ownedShipHulls.push(h.id);
+        toast(h.name+'を購入した', '#ffcf5c');
+      }
+      const newSlots = h.weaponSlots;
+      if(player.equippedWeapons.length > newSlots){
+        // スロットが減る場合は超過分を自動で外す
+        const removed = player.equippedWeapons.splice(newSlots);
+        toast(removed.length+'門を装備から外した(スロット不足)', '#ff9f4d');
+      }
+      if(player.droneSquadronIds.length > (h.droneSlots||1)){
+        const removedD = player.droneSquadronIds.splice(h.droneSlots||1);
+        toast(removedD.length+'隊を艦載機から降ろした(スロット不足)', '#ff9f4d');
+      }
+      player.shipHullId = h.id;
+      toast(h.name+'に乗り換えた', '#4fd6ff');
+      renderHull(); renderEquip(); updateHud(); saveGame();
+    };
+    wrapH.appendChild(c);
+  });
+}
+function renderUpgradeTrack(container, opts){
+  // opts: {title, levelKey, list, effectDesc(next), applyEffect(next), currentDesc()}
+  const head = document.createElement('div');
+  head.style.cssText='color:var(--gold);font-size:12px;margin:10px 0 2px;';
+  head.textContent = opts.title+' Lv '+player[opts.levelKey]+' / '+opts.list.length;
+  container.appendChild(head);
+
+  const curCard = document.createElement('div');
+  curCard.className='card';
+  curCard.innerHTML = `<div class="card-sub">${opts.currentDesc()}</div>`;
+  container.appendChild(curCard);
+
+  if(player[opts.levelKey] >= opts.list.length){
+    const doneCard = document.createElement('div');
+    doneCard.className='card';
+    doneCard.innerHTML = `<div class="card-sub" style="color:var(--gold);">最大段階まで強化済みです。</div>`;
+    container.appendChild(doneCard);
+    return;
+  }
+  const next = opts.list[player[opts.levelKey]];
+  const canAfford = Object.entries(next.cost).every(([m,n])=> (player.materials[m]||0)>=n);
+  const costStr = Object.entries(next.cost).map(([m,n])=>{
+    const have = player.materials[m]||0;
+    const ok = have>=n;
+    return `<span style="color:${ok?'#4fd6ff':'#ff6b6b'}">${MAT_NAMES[m]} ${have}/${n}</span>`;
+  }).join(' , ');
+  const c = document.createElement('div');
+  c.className='card';
+  c.innerHTML = `<div class="card-title"><span class="name">${next.name}</span></div>
+    <div class="card-sub">${opts.effectDesc(next)}<br>必要素材: ${costStr}</div>
+    <div class="card-actions"><button class="smallbtn" ${canAfford?'':'disabled'}>強化する</button></div>`;
+  c.querySelector('button').onclick = ()=>{
+    if(!canAfford) return;
+    Object.entries(next.cost).forEach(([m,n])=> player.materials[m]-=n);
+    player[opts.levelKey] += 1;
+    opts.applyEffect(next);
+    toast(next.name+' 完了!', '#4fd6ff');
+    renderUpgrade(); updateMatBar(); updateHud(); saveGame();
+  };
+  container.appendChild(c);
+}
+
+function renderUpgrade(){
+  const wrapU = document.getElementById('tab-upgrade');
+  wrapU.innerHTML='';
+  const st = currentStats();
+
+  const introCard = document.createElement('div');
+  introCard.className='card';
+  introCard.innerHTML = `<div class="card-sub">装備の付け替えとは別に、船体の各系統を恒久的に強化します。一度強化すると外れません。</div>`;
+  wrapU.appendChild(introCard);
+
+  renderUpgradeTrack(wrapU, {
+    title:'船体強化', levelKey:'hullLevel', list:HULL_UPGRADES,
+    currentDesc:()=>`現在の船体最大HP: ${st.maxHull}(基礎100 + 装甲 + 強化累計${totalHullUpgradeBonus()})`,
+    effectDesc:(next)=>`船体最大HP +${next.hullBonus}`,
+    applyEffect:(next)=>{ player.hull += next.hullBonus; },
+  });
+  renderUpgradeTrack(wrapU, {
+    title:'武装出力強化', levelKey:'weaponLevel', list:WEAPON_UPGRADES,
+    currentDesc:()=>`全武装の威力に強化累計 +${totalWeaponDamageBonus()} が乗っています`,
+    effectDesc:(next)=>`全武装の威力 +${next.damageBonus}`,
+    applyEffect:(next)=>{},
+  });
+  renderUpgradeTrack(wrapU, {
+    title:'シールド発生装置強化', levelKey:'shieldLevel', list:SHIELD_UPGRADES,
+    currentDesc:()=>`現在の最大シールド: ${st.maxShieldBarrier} / 自動回復速度: ${st.shieldRegen.toFixed(1)}/秒`,
+    effectDesc:(next)=>`最大シールド +${next.shieldBonus} / 回復速度 +${next.regenBonus}/秒`,
+    applyEffect:(next)=>{ player.shieldBarrier += next.shieldBonus; },
+  });
+  renderUpgradeTrack(wrapU, {
+    title:'機動スラスター強化(回避)', levelKey:'evasionLevel', list:EVASION_UPGRADES,
+    currentDesc:()=>`現在の回避率: ${Math.round(st.evasion*100)}%`,
+    effectDesc:(next)=>`回避率 +${Math.round(next.evasionBonus*100)}%`,
+    applyEffect:(next)=>{},
+  });
+  renderUpgradeTrack(wrapU, {
+    title:'照準システム強化(命中)', levelKey:'accuracyLevel', list:ACCURACY_UPGRADES,
+    currentDesc:()=>`全武装の命中率に強化累計 +${Math.round(totalAccuracyBonus()*100)}% が乗っています`,
+    effectDesc:(next)=>`全武装の命中率 +${Math.round(next.accuracyBonus*100)}%`,
+    applyEffect:(next)=>{},
+  });
+  renderUpgradeTrack(wrapU, {
+    title:'索敵センサー強化', levelKey:'sensorLevel', list:SENSOR_UPGRADES,
+    currentDesc:()=>`現在の索敵範囲: ${st.sensorRadius}px ―― 範囲内の敵は事前に見え、迂回して回避できます`,
+    effectDesc:(next)=>`索敵範囲 +${next.radiusBonus}px`,
+    applyEffect:(next)=>{},
+  });
+}
+
+function renderTrade(){
+  const wrapT = document.getElementById('tab-trade');
+  wrapT.innerHTML='';
+
+  const creditsCard = document.createElement('div');
+  creditsCard.className='card';
+  creditsCard.innerHTML = `<div class="card-title"><span class="name">所持資金</span></div><div class="card-sub" style="color:var(--gold);font-size:15px;">${player.credits} クレジット</div>`;
+  wrapT.appendChild(creditsCard);
+
+  // 素材売却
+  const sellHead = document.createElement('div');
+  sellHead.style.cssText='color:var(--gold);font-size:12px;margin:6px 0 2px;';
+  sellHead.textContent = '素材の売買';
+  wrapT.appendChild(sellHead);
+  Object.keys(MAT_NAMES).forEach(m=>{
+    const have = player.materials[m]||0;
+    const sellPrice = SELL_PRICES[m];
+    const buyPrice = BUY_PRICES[m];
+    const buyCost = buyPrice*BUY_LOT;
+    const c = document.createElement('div');
+    c.className='card';
+    c.innerHTML = `<div class="card-title"><span class="name">${MAT_NAMES[m]}</span><span style="color:var(--dim)">所持 ${have}</span></div>
+      <div class="card-sub">売却単価 ${sellPrice}クレジット / 購入単価 ${buyPrice}クレジット</div>
+      <div class="card-actions">
+        <button class="smallbtn" data-act="sell" ${have<=0?'disabled':''}>全て売却(+${have*sellPrice})</button>
+        <button class="smallbtn" data-act="buy" ${player.credits<buyCost?'disabled':''}>${BUY_LOT}個購入(-${buyCost})</button>
+      </div>`;
+    c.querySelector('[data-act="sell"]').onclick = ()=>{
+      if(have<=0) return;
+      player.credits += have*sellPrice;
+      player.materials[m] = 0;
+      toast(MAT_NAMES[m]+'を売却 +'+(have*sellPrice)+'クレジット', '#ffcf5c');
+      renderTrade(); updateMatBar(); updateHud(); saveGame();
+    };
+    c.querySelector('[data-act="buy"]').onclick = ()=>{
+      if(player.credits<buyCost) return;
+      player.credits -= buyCost;
+      player.materials[m] = (player.materials[m]||0)+BUY_LOT;
+      toast(MAT_NAMES[m]+'を'+BUY_LOT+'個購入 -'+buyCost+'クレジット', '#4fd6ff');
+      renderTrade(); updateMatBar(); updateHud(); saveGame();
+    };
+    wrapT.appendChild(c);
+  });
+
+  // 回復キット購入
+  const kitHead = document.createElement('div');
+  kitHead.style.cssText='color:var(--gold);font-size:12px;margin:10px 0 2px;';
+  kitHead.textContent = 'アイテム購入';
+  wrapT.appendChild(kitHead);
+  const kitCard = document.createElement('div');
+  kitCard.className='card';
+  kitCard.innerHTML = `<div class="card-title"><span class="name">応急修理キット</span><span style="color:var(--dim)">所持 ${player.repairKits}</span></div>
+    <div class="card-sub">戦闘中の応急修理で使用。1個消費で武装の劣化を2段階分回復する(完全修理は母船でのみ可能)。</div>
+    <div class="card-actions"><button class="smallbtn" ${player.credits<REPAIR_KIT_COST?'disabled':''}>購入する (${REPAIR_KIT_COST}クレジット)</button></div>`;
+  kitCard.querySelector('button').onclick = ()=>{
+    if(player.credits<REPAIR_KIT_COST) return;
+    player.credits -= REPAIR_KIT_COST;
+    player.repairKits += 1;
+    toast('応急修理キットを購入した', '#ffcf5c');
+    renderTrade(); updateHud(); saveGame();
+  };
+  wrapT.appendChild(kitCard);
+}
+
+/* ============ HUD更新 ============ */
+const shieldFill = document.getElementById('shieldFill');
+const hullFill = document.getElementById('hullFill');
+const energyFill = document.getElementById('energyFill');
+const shieldNum = document.getElementById('shieldNum');
+const hullNum = document.getElementById('hullNum');
+const energyNum = document.getElementById('energyNum');
+const weaponStatus = document.getElementById('weaponStatus');
+const hullStatus = document.getElementById('hullStatus');
+const creditsDisplay = document.getElementById('creditsDisplay');
+const matBar = document.getElementById('matBar');
+function updateHud(){
+  const st = currentStats();
+  player.hull = Math.min(player.hull, st.maxHull);
+  player.shieldBarrier = Math.min(player.shieldBarrier, st.maxShieldBarrier);
+  player.energy = Math.min(player.energy, st.maxEnergy);
+  shieldFill.style.width = Math.max(0,(player.shieldBarrier/st.maxShieldBarrier*100))+'%';
+  hullFill.style.width = Math.max(0,(player.hull/st.maxHull*100))+'%';
+  energyFill.style.width = Math.max(0,(player.energy/st.maxEnergy*100))+'%';
+  shieldNum.textContent = Math.ceil(player.shieldBarrier)+'/'+st.maxShieldBarrier;
+  hullNum.textContent = Math.ceil(player.hull)+'/'+st.maxHull;
+  energyNum.textContent = Math.ceil(player.energy)+'/'+st.maxEnergy;
+  const weaponLabels = player.equippedWeapons.map(wid=>{
+    const w = effectiveWeaponStats(WEAPONS[wid]);
+    return w.name+'(威力'+w.damage+(w.stage>0?' ['+w.stageName+']':'')+')';
+  });
+  weaponStatus.textContent = '武装: '+weaponLabels.join(' + ');
+  const anyBroken = player.equippedWeapons.some(wid=>(player.weaponStages[wid]||0)>=3);
+  weaponStatus.classList.toggle('broken', anyBroken);
+  const ar = ARMORS[player.armorId];
+  const md = MODULES[player.moduleId];
+  hullStatus.textContent = '船体: '+ar.name+' / '+md.name;
+  creditsDisplay.textContent = '資金: '+player.credits;
+}
+function updateMatBar(){
+  matBar.innerHTML='';
+  Object.entries(player.materials).forEach(([k,v])=>{
+    const chip = document.createElement('div');
+    chip.className='matChip';
+    chip.textContent = MAT_NAMES[k]+' x'+v;
+    matBar.appendChild(chip);
+  });
+}
+
+/* ============ マップ移動ループ ============ */
+let lastT = performance.now();
+let stars = [];
+function initStars(){
+  stars=[];
+  for(let i=0;i<120;i++) stars.push({x:Math.random()*2000, y:Math.random()*2000, r:Math.random()*1.6+0.3, tw:Math.random()*Math.PI*2});
+}
+initStars();
+
+function moveToward(obj, speed, dt){
+  const dx = obj.tx-obj.x, dy = obj.ty-obj.y;
+  const d = Math.hypot(dx,dy);
+  if(d<2) return;
+  const step = Math.min(d, speed*dt);
+  obj.x += dx/d*step;
+  obj.y += dy/d*step;
+  if(dx!==0) player.facing = dx>0?1:-1;
+}
+function respawnAtBase(){
+  const st = currentStats();
+  zone='space';
+  player.x=player.tx=player.lastDockPos.x; player.y=player.ty=player.lastDockPos.y;
+  player.hull = Math.max(1, Math.floor(st.maxHull*0.3));
+  player.shieldBarrier = st.maxShieldBarrier;
+  player.ownedWeapons.forEach(wid=>{ player.weaponStages[wid] = 0; });
+  zoneLabel.textContent='SPACE SECTOR';
+  toast('船体大破 ―― 緊急脱出、母船付近まで帰還した','#ff6b6b');
+  saveGame();
+}
+
+function frame(t){
+  const dt = Math.min(0.05, (t-lastT)/1000);
+  lastT = t;
+  const st = currentStats();
+
+  if(!inBattle && !panelOpen){
+    moveToward(player, player.baseSpeed, dt);
+    player.energy = Math.min(st.maxEnergy, player.energy + st.energyRegen*dt);
+    player.shieldBarrier = Math.min(st.maxShieldBarrier, player.shieldBarrier + st.shieldRegen*dt);
+    player.weaponRegenTimer += dt;
+    if(player.weaponRegenTimer >= 25){
+      player.weaponRegenTimer = 0;
+      let anyRegen = false;
+      player.ownedWeapons.forEach(wid=>{
+        const stage = player.weaponStages[wid]||0;
+        if(stage > 1){ player.weaponStages[wid] = stage-1; anyRegen = true; }
+      });
+      if(anyRegen) toast('整備クルーが武装を応急処置した(完全回復は母船で)', '#4fd6ff');
+    }
+
+    updateRandomEncounters(dt);
+
+    const encounters = zone==='space'? SPACE_ENCOUNTERS: STATION_ENCOUNTERS;
+    let triggered = false;
+    const now = performance.now();
+    for(const enc of encounters){
+      if(!enc.cleared && dist(player, enc) < 30 && !(enc.retreatCooldownUntil && now < enc.retreatCooldownUntil)){
+        startBattle(enc);
+        triggered = true;
+        break;
+      }
+    }
+    if(!triggered){
+      const randList = zone==='space'? spaceRandomEncounters: stationRandomEncounters;
+      for(const enc of randList){
+        if(dist(player, enc) < 26 && !(enc.retreatCooldownUntil && now < enc.retreatCooldownUntil)){
+          startBattle(enc);
+          break;
+        }
+      }
+    }
+    if(zone==='station'){
+      salvageNodes.forEach(n=>{
+        if(!n.collected && n.pendingCollect && dist(player,n)<n.r+12){
+          n.collected = true;
+          const matKeys = Object.keys(MAT_NAMES);
+          const m = matKeys[Math.floor(Math.random()*matKeys.length)];
+          const n2 = Math.floor(Math.random()*2)+1;
+          player.materials[m]+=n2;
+          toast('回収: +'+n2+' '+MAT_NAMES[m], '#ffcf5c');
+          updateMatBar(); saveGame();
+        }
+      });
+    }
+  }
+
+  render();
+  updateButtons();
+  updateHud();
+  requestAnimationFrame(frame);
+}
+function updateButtons(){
+  if(panelOpen || inBattle){ dockBtn.style.display='none'; enterBtn.style.display='none'; exitBtn.style.display='none'; return; }
+  if(zone==='space'){
+    dockBtn.style.display = dist(player, spaceObjs.dock) < 60 ? 'inline-block':'none';
+    enterBtn.style.display = dist(player, spaceObjs.stationGate) < 60 ? 'inline-block':'none';
+    exitBtn.style.display='none';
+  } else {
+    dockBtn.style.display='none'; enterBtn.style.display='none';
+    exitBtn.style.display = dist(player, stationExit) < 60 ? 'inline-block':'none';
+  }
+}
+
+/* ============ マップ描画 ============ */
+function drawShip(x,y,color,facing,broken){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.scale(facing||1,1);
+  ctx.beginPath();
+  ctx.moveTo(12,0); ctx.lineTo(-10,-8); ctx.lineTo(-5,0); ctx.lineTo(-10,8);
+  ctx.closePath();
+  ctx.fillStyle = broken? '#555' : color;
+  ctx.fill();
+  ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.stroke();
+  ctx.restore();
+}
+function drawStationIcon(x,y,color,label){
+  ctx.save();
+  ctx.strokeStyle=color; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(x,y,16,0,7); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x,y,22,0,7); ctx.globalAlpha=0.4; ctx.stroke();
+  ctx.globalAlpha=1;
+  ctx.fillStyle=color; ctx.font='11px sans-serif'; ctx.textAlign='center';
+  ctx.fillText(label, x, y+34);
+  ctx.restore();
+}
+function drawEncounterMarker(enc, isSensor){
+  if(enc.cleared) return;
+  const t = performance.now()/300;
+  ctx.save();
+  ctx.translate(enc.x, enc.y);
+  ctx.rotate(Math.sin(t)*0.15);
+  ctx.fillStyle= isSensor ? '#ffcf5c' : '#ff6b6b';
+  ctx.beginPath(); ctx.moveTo(0,-14); ctx.lineTo(12,10); ctx.lineTo(-12,10); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#05060c';
+  ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
+  ctx.fillText(isSensor?'?':'!', 0, 6);
+  ctx.restore();
+  // 編成艦種を示す色ドット
+  const n = enc.enemies.length;
+  const dotStartX = enc.x - (n-1)*6;
+  enc.enemies.forEach((e,i)=>{
+    ctx.fillStyle = ENEMY_DEFS[e.type].color;
+    ctx.beginPath(); ctx.arc(dotStartX + i*12, enc.y+22, 4, 0, 7); ctx.fill();
+  });
+}
+function render(){
+  ctx.clearRect(0,0,W,H);
+  const st = currentStats();
+  if(zone==='space'){
+    ctx.fillStyle='#05060c'; ctx.fillRect(0,0,W,H);
+    stars.forEach(s=>{
+      const sx = s.x % W, sy = s.y % H;
+      const tw = 0.5+0.5*Math.sin(performance.now()/600 + s.tw);
+      ctx.fillStyle = `rgba(200,220,255,${0.3+0.5*tw})`;
+      ctx.beginPath(); ctx.arc(sx,sy,s.r,0,7); ctx.fill();
+    });
+    drawStationIcon(spaceObjs.dock.x, spaceObjs.dock.y, '#4fd6ff', '母船');
+    drawStationIcon(spaceObjs.stationGate.x, spaceObjs.stationGate.y, '#ffcf5c', '漂流船');
+    SPACE_ENCOUNTERS.forEach(drawEncounterMarker);
+    spaceRandomEncounters.forEach(enc=>{ if(dist(player,enc)<=st.sensorRadius) drawEncounterMarker(enc, true); });
+  } else {
+    ctx.fillStyle='#0a0a10'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#1a2440'; ctx.lineWidth=1;
+    for(let gx=0; gx<W; gx+=40){ ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke(); }
+    for(let gy=0; gy<H; gy+=40){ ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke(); }
+    drawStationIcon(stationExit.x, stationExit.y, '#4fd6ff', '出口');
+    salvageNodes.forEach(n=>{
+      if(n.collected) return;
+      ctx.save(); ctx.translate(n.x,n.y); ctx.rotate(Math.PI/4);
+      ctx.fillStyle='#ffcf5c'; ctx.fillRect(-8,-8,16,16); ctx.restore();
+    });
+    STATION_ENCOUNTERS.forEach(drawEncounterMarker);
+    stationRandomEncounters.forEach(enc=>{ if(dist(player,enc)<=st.sensorRadius) drawEncounterMarker(enc, true); });
+  }
+  // 索敵範囲の輪
+  ctx.save();
+  ctx.strokeStyle='#4fd6ff2a'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.arc(player.x, player.y, st.sensorRadius, 0, 7); ctx.stroke();
+  ctx.restore();
+  drawShip(player.x, player.y, '#4fd6ff', player.facing, player.equippedWeapons.every(wid=>(player.weaponStages[wid]||0)>=3));
+  if(Math.hypot(player.tx-player.x, player.ty-player.y) > 3){
+    ctx.strokeStyle='#4fd6ff66';
+    ctx.beginPath(); ctx.arc(player.tx, player.ty, 6, 0, 7); ctx.stroke();
+  }
+}
+
+/* ============ 戦闘システム ============ */
+const battleScreen = document.getElementById('battleScreen');
+const enemyRowsEl = document.getElementById('enemyRows');
+const battleStageCanvas = document.getElementById('battleStage');
+const battleStageCtx = battleStageCanvas.getContext('2d');
+const battleLogEl = document.getElementById('battleLog');
+function resizeBattleStage(){
+  const r = battleStageCanvas.getBoundingClientRect();
+  battleStageCanvas.width = Math.max(1, Math.floor(r.width));
+  battleStageCanvas.height = Math.max(1, Math.floor(r.height));
+}
+window.addEventListener('resize', ()=>{ if(inBattle) resizeBattleStage(); if(inBattle) drawBattleStage(); });
+
+function drawShipIcon(c, x, y, color, facing, dead, selected, flash){
+  c.save();
+  c.translate(x,y);
+  c.scale(facing,1);
+  if(selected){
+    c.save(); c.scale(1/facing,1);
+    c.strokeStyle='#ffcf5c'; c.lineWidth=2;
+    c.beginPath(); c.arc(0,0,20,0,7); c.stroke();
+    c.restore();
+  }
+  c.beginPath();
+  c.moveTo(14,0); c.lineTo(-11,-9); c.lineTo(-5,0); c.lineTo(-11,9);
+  c.closePath();
+  c.fillStyle = dead? '#333' : (flash>0 ? '#ffffff' : color);
+  c.fill();
+  c.strokeStyle = dead? '#555' : '#ffffff66';
+  c.lineWidth=1; c.stroke();
+  c.restore();
+}
+function drawRadarDish(c, r){
+  c.save();
+  // 外周のディッシュ(固定)
+  c.beginPath(); c.arc(0,0,r,0,7); c.fill(); c.stroke();
+  c.beginPath(); c.arc(0,0,r*0.4,0,7); c.globalAlpha=0.6; c.fill(); c.globalAlpha=1;
+  // 回転するスキャンライン
+  c.rotate(performance.now()/450);
+  c.strokeStyle='#ffffffcc'; c.lineWidth=1.4;
+  c.beginPath(); c.moveTo(0,0); c.lineTo(r*1.6,0); c.stroke();
+  c.beginPath(); c.moveTo(0,0); c.lineTo(-r*1.6*0.3,0.1); c.stroke();
+  c.restore();
+}
+function drawDroneShape(c, squadronType){
+  // 艦種ごとのシルエット。敵の防空ドローンと同じ描画関数を使い、見た目を統一する
+  if(squadronType==='aa1'){
+    drawRadarDish(c, 4.5);
+  } else if(squadronType==='scout1'){
+    // 索敵ドローン: 小さな丸+側翼
+    c.beginPath(); c.arc(0,0,3.2,0,7); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-2,-1.5); c.lineTo(-7,-3.5); c.lineTo(-3,0.4); c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-2,1.5); c.lineTo(-7,3.5); c.lineTo(-3,-0.4); c.closePath(); c.fill(); c.stroke();
+  } else if(squadronType==='bomber1'){
+    // 爆撃機: どっしりした台形ボディ
+    c.beginPath(); c.moveTo(6,0); c.lineTo(1,-4); c.lineTo(-5,-3); c.lineTo(-5,3); c.lineTo(1,4); c.closePath(); c.fill(); c.stroke();
+  } else {
+    // 戦闘機(既定・fighter1): 細い矢型
+    c.beginPath(); c.moveTo(5,0); c.lineTo(-3,-3); c.lineTo(-3,3); c.closePath(); c.fill(); c.stroke();
+  }
+}
+function drawDroneWing(c, baseX, baseY, sign, orbit, row, squadronId, slotIdx){
+  const strength = squadronId ? droneStrengthOf(squadronId) : 100;
+  const wingCount = strength<=0 ? 0 : strength>66 ? 3 : strength>33 ? 2 : 1;
+  const wingColor = strength<=0 ? '#555' : (strength<=30 ? '#ff9f4d' : '#8ce89a');
+  const squadronType = squadronId || 'fighter1';
+  const slotOffset = (slotIdx||0) * 8; // 複数艦種が同じ場所を周回する際に軌道をずらす
+  const t = performance.now()/1000;
+  for(let i=0;i<wingCount;i++){
+    let wx, wy, angle;
+    if(orbit){
+      const orbitR = 20 + slotOffset + (i%2)*6;
+      const speed = 1.1 + i*0.15;
+      const phase = t*speed + i*(Math.PI*2/3) + slotOffset*0.1;
+      wx = baseX + Math.cos(phase)*orbitR;
+      wy = baseY + Math.sin(phase)*orbitR*0.55; // 楕円軌道(奥行き感)
+      angle = phase + Math.PI/2;
+    } else if(row){
+      // 複数の敵編隊全体の上を横一列に飛行(左右にゆっくり往復)
+      const spacing = 16;
+      const spanOffset = (i - (wingCount-1)/2) * spacing;
+      const sway = Math.sin(t*0.9 + i*1.3)*10;
+      wx = baseX + spanOffset + sway;
+      wy = baseY + Math.sin(t*2.4 + i)*3;
+      angle = Math.sin(t*0.9 + i*1.3) > 0 ? -Math.PI/2 - 0.3 : -Math.PI/2 + 0.3;
+    } else {
+      wx = baseX + sign*(i*9);
+      wy = baseY - (i%2)*6 + Math.sin(t*3.8 + i)*2;
+      angle = sign<0 ? Math.PI : 0;
+    }
+    c.save();
+    c.translate(wx, wy);
+    c.rotate(angle);
+    c.fillStyle = wingColor;
+    c.strokeStyle = '#ffffff55'; c.lineWidth = 0.6;
+    drawDroneShape(c, squadronType);
+    c.restore();
+  }
+  if(wingCount===0){
+    c.fillStyle='#ff6b6b'; c.font='9px sans-serif'; c.textAlign='center';
+    c.fillText('艦載機壊滅', baseX+sign*8, baseY);
+  }
+}
+function drawEnemyIcon(c, x, y, type, color, facing, dead, selected, flash){
+  if(selected){
+    c.save();
+    c.strokeStyle='#ffcf5c'; c.lineWidth=2;
+    c.beginPath(); c.arc(x,y,20,0,7); c.stroke();
+    c.restore();
+  }
+  c.save();
+  c.translate(x,y);
+  c.scale(facing,1);
+  c.fillStyle = dead? '#333' : (flash>0 ? '#ffffff' : color);
+  c.strokeStyle = dead? '#555' : '#ffffff66';
+  c.lineWidth=1;
+  if(type==='drone'){
+    // 丸い本体+小さな側翼(索敵ドローン)
+    c.beginPath(); c.arc(0,0,8,0,7); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-6,-4); c.lineTo(-16,-9); c.lineTo(-7,1); c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-6,4); c.lineTo(-16,9); c.lineTo(-7,-1); c.closePath(); c.fill(); c.stroke();
+  } else if(type==='raider'){
+    // 細長いダート型(高機動レイダー)
+    c.beginPath();
+    c.moveTo(17,0); c.lineTo(-4,-6); c.lineTo(-15,-4); c.lineTo(-15,4); c.lineTo(-4,6);
+    c.closePath(); c.fill(); c.stroke();
+  } else if(type==='turret'){
+    // 六角形の固定砲台+砲身(移動しない防衛ユニット)
+    c.beginPath();
+    c.moveTo(-9,-11); c.lineTo(9,-11); c.lineTo(15,0); c.lineTo(9,11); c.lineTo(-9,11); c.lineTo(-15,0);
+    c.closePath(); c.fill(); c.stroke();
+    c.fillRect(-2,-2,17,4);
+  } else if(type==='bot'){
+    // 小型ボディ+アーム状の突起(整備ボット)
+    c.beginPath(); c.moveTo(11,0); c.lineTo(-6,-9); c.lineTo(-1,0); c.lineTo(-6,9); c.closePath(); c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(-6,-9); c.lineTo(-15,-12); c.stroke();
+    c.beginPath(); c.moveTo(-6,9); c.lineTo(-15,12); c.stroke();
+  } else if(type==='aa_drone'){
+    // 星型(防空ドローン、迎撃特化のシルエット)。常時回転してレーダー稼働中を演出
+    if(!dead){
+      c.save();
+      c.strokeStyle = color; c.globalAlpha = 0.35; c.lineWidth = 1;
+      c.beginPath(); c.arc(0,0,13,0,7); c.stroke();
+      c.restore();
+    }
+    drawRadarDish(c, 7);
+  } else {
+    c.beginPath(); c.moveTo(14,0); c.lineTo(-11,-9); c.lineTo(-5,0); c.lineTo(-11,9); c.closePath(); c.fill(); c.stroke();
+  }
+  c.restore();
+}
+function drawBattleStage(){
+  if(!battle) return;
+  const c = battleStageCtx;
+  const W2 = battleStageCanvas.width, H2 = battleStageCanvas.height;
+  c.clearRect(0,0,W2,H2);
+
+  // 背景: 星+ネビュラのグラデーション
+  const t = performance.now()/1000;
+  const grad = c.createRadialGradient(W2*0.5,H2*0.5,0, W2*0.5,H2*0.5, Math.max(W2,H2)*0.7);
+  grad.addColorStop(0, '#101836');
+  grad.addColorStop(1, '#03040a');
+  c.fillStyle = grad;
+  c.fillRect(0,0,W2,H2);
+  if(!battleStars.length || battleStars[0].w!==W2){
+    battleStars = [];
+    for(let i=0;i<40;i++) battleStars.push({x:Math.random()*W2, y:Math.random()*H2, r:Math.random()*1.3+0.3, tw:Math.random()*Math.PI*2, w:W2});
+  }
+  battleStars.forEach(s=>{
+    const tw = 0.4+0.6*Math.sin(t*2+s.tw);
+    c.fillStyle = `rgba(200,220,255,${0.2+0.4*tw})`;
+    c.beginPath(); c.arc(s.x, s.y, s.r, 0, 7); c.fill();
+  });
+
+  // 画面シェイク
+  c.save();
+  if(shakeTime>0){
+    const sx = (Math.random()*2-1)*shakeMag*(shakeTime);
+    const sy = (Math.random()*2-1)*shakeMag*(shakeTime);
+    c.translate(sx, sy);
+  }
+
+  // 距離ゾーン背景 (近距離/中距離/遠距離) + スキャンライン
+  const curZone = zoneOf(battle.distance);
+  const zoneX0 = 70, zoneW = (W2-90)/3;
+  for(let i=0;i<3;i++){
+    const zx = zoneX0 + i*zoneW;
+    c.fillStyle = i===curZone ? '#4fd6ff22' : '#ffffff06';
+    c.fillRect(zx, 0, zoneW-4, H2);
+    if(i===curZone){
+      c.strokeStyle='#4fd6ff88'; c.lineWidth=1; c.strokeRect(zx,0,zoneW-4,H2);
+      const scanY = ((t*40)%H2);
+      const scanGrad = c.createLinearGradient(0,scanY-10,0,scanY+10);
+      scanGrad.addColorStop(0,'#4fd6ff00'); scanGrad.addColorStop(0.5,'#4fd6ff33'); scanGrad.addColorStop(1,'#4fd6ff00');
+      c.fillStyle = scanGrad;
+      c.fillRect(zx, scanY-10, zoneW-4, 20);
+    }
+    c.fillStyle = i===curZone ? '#ffcf5c' : '#5a6690';
+    c.font='10px sans-serif'; c.textAlign='center';
+    c.fillText(BAND_NAMES[i], zx+zoneW/2-2, H2-6);
+  }
+
+  // 細かい距離ゲージ(0-8の目盛り、現在位置を明示)
+  const trackW0 = zoneW*3 - 24;
+  const trackX0 = zoneX0+12, trackX1 = trackX0+trackW0;
+  const gaugeY = 10;
+  c.strokeStyle = '#ffffff2a'; c.lineWidth=1;
+  c.beginPath(); c.moveTo(trackX0, gaugeY); c.lineTo(trackX1, gaugeY); c.stroke();
+  for(let d=0; d<=8; d++){
+    const tx = trackX0 + (d/8)*trackW0;
+    const isCur = d===battle.distance;
+    c.fillStyle = isCur ? '#ffcf5c' : '#ffffff44';
+    c.beginPath(); c.arc(tx, gaugeY, isCur?4:1.8, 0, 7); c.fill();
+    if(isCur){
+      c.fillStyle='#ffcf5c'; c.font='bold 9px sans-serif'; c.textAlign='center';
+      c.fillText(d+'/8', tx, gaugeY-8);
+    }
+  }
+
+  // 自機
+  const playerX = 34, playerY = H2/2;
+  playerScreenPos.x = playerX; playerScreenPos.y = playerY;
+  drawShipIcon(c, playerX, playerY, '#4fd6ff', 1, false, false, player.flashTimer);
+  c.fillStyle='#8a94b8'; c.font='10px sans-serif'; c.textAlign='center';
+  c.fillText('自艦', playerX, H2-6);
+
+  // 艦載機隊(常駐表示、艦種ごとに戦力に応じて機数が減る)
+  player.droneSquadronIds.forEach((did,slotIdx)=>{
+    const dInfo = DRONE_SQUADRONS[did];
+    if(dInfo.type==='defense'){
+      // 防御型は常に自艦の周りを周回して護衛(スロットごとに軌道半径をずらす)
+      drawDroneWing(c, playerX, playerY, 1, true, false, did, slotIdx);
+    } else {
+      const st = battle.droneState[did];
+      const attached = st && st.turnsActive>=1 && battle.enemies.some(e=>e.id===st.targetId && e.alive);
+      if(!attached){
+        drawDroneWing(c, playerX+22, playerY-20-slotIdx*14, 1, false, false, did, slotIdx);
+      }
+    }
+  });
+
+  // 敵(距離値に応じて連続的に位置、前衛はやや手前、後衛はやや奥)
+  const trackW = zoneW*3 - 24;
+  const zx = zoneX0 + 12 + (battle.distance/8)*trackW;
+  let escortHostX = null, escortHostY = null;
+  ['front','back','escort'].forEach((rowKey, ri)=>{
+    const list = battle.enemies.filter(e=>e.row===rowKey);
+    const colOffset = rowKey==='front' ? -zoneW*0.18 : zoneW*0.18;
+    const colX = zx + colOffset;
+    list.forEach((en,i)=>{
+      const spacing = 26;
+      const startY = H2/2 - ((list.length-1)*spacing)/2;
+      const ey = startY + i*spacing;
+      let ex, eyPos;
+      if(rowKey==='escort' && escortHostX!==null){
+        // 護衛対象(前衛優先、いなければ後衛)の周りを周回する
+        const orbitR = 11;
+        const phase = performance.now()/1800 + i*(Math.PI*2/Math.max(1,list.length));
+        ex = escortHostX + Math.cos(phase)*orbitR;
+        eyPos = escortHostY + Math.sin(phase)*orbitR*0.6;
+      } else {
+        ex = colX; eyPos = ey;
+        if(rowKey==='front' && i===0){ escortHostX = ex; escortHostY = eyPos; }
+        if(rowKey==='back' && escortHostX===null && i===0){ escortHostX = ex; escortHostY = eyPos; }
+      }
+      en.screenX = ex; en.screenY = eyPos;
+      drawEnemyIcon(c, ex, eyPos, en.type, en.color, -1, !en.alive, en.id===battle.selectedTarget, en.flashTimer);
+      if(en.enraged && en.alive){
+        c.save();
+        const pulse = 0.5+0.5*Math.sin(performance.now()/150);
+        c.strokeStyle = `rgba(255,107,107,${0.5+0.4*pulse})`;
+        c.lineWidth = 2;
+        c.beginPath(); c.arc(ex, eyPos, 15+pulse*3, 0, 7); c.stroke();
+        c.restore();
+      }
+    });
+  });
+
+  player.droneSquadronIds.filter(did=>DRONE_SQUADRONS[did].type==='attack').forEach((did,slotIdx)=>{
+    const st = battle.droneState[did];
+    if(st && st.turnsActive>=1){
+      const dTarget = battle.enemies.find(e=>e.id===st.targetId && e.alive);
+      if(dTarget) drawDroneWing(c, dTarget.screenX, dTarget.screenY, -1, true, false, did, slotIdx);
+    }
+  });
+
+  drawBattleEffects(c);
+  c.restore();
+}
+let battleStars = [];
+let playerScreenPos = {x:34, y:0};
+const playerBattleStatusEl = document.getElementById('playerBattleStatus');
+const weaponSelectRowEl = document.getElementById('weaponSelectRow');
+const cmdAttack = document.getElementById('cmdAttack');
+const cmdClose = document.getElementById('cmdClose');
+const cmdFar = document.getElementById('cmdFar');
+const cmdGuard = document.getElementById('cmdGuard');
+const cmdRepair = document.getElementById('cmdRepair');
+const cmdRetreat = document.getElementById('cmdRetreat');
+
+let battle = null; // {encounter, enemies:[{def,type,row,shield,maxShield,id}], band, selectedTarget}
+
+function startBattle(enc){
+  inBattle = true;
+  battleScreen.classList.add('show');
+  battleEffects = [];
+  player.flashTimer = 0;
+  const surprise = !!(enc.isRandom && !enc.everSeen);
+  battle = {
+    encounter: enc,
+    enemies: enc.enemies.map((e,i)=>{
+      const def = ENEMY_DEFS[e.type];
+      return {id:i, type:e.type, row:e.row, name:def.name, color:def.color,
+        shield:def.maxShield, maxShield:def.maxShield, bands:def.bands, damage:def.damage, weaponType:def.weaponType,
+        weaponAccuracy:def.weaponAccuracy, evasion:def.evasion, mobility:def.mobility, unmanned:def.unmanned, drops:def.drops, creditsReward:def.creditsReward, alive:true, flashTimer:0};
+    }),
+    distance: surprise ? 1 : 4,
+    selectedTarget: null,
+    totalMaterials: {},
+    totalCredits: 0,
+    droneState: {},
+    roundsElapsed: 0,
+  };
+  const firstAlive = battle.enemies.find(e=>e.alive);
+  battle.selectedTarget = firstAlive ? firstAlive.id : null;
+  logClear();
+  if(surprise){
+    log('=== 奇襲を受けた! ===', '#ff6b6b');
+    toast('索敵範囲外から奇襲を受けた!', '#ff6b6b');
+    sfxWarn();
+  }
+  log('戦闘開始! 距離: '+BAND_NAMES[zoneOf(battle.distance)], '#ffcf5c');
+  resizeBattleStage();
+  renderBattle();
+  if(surprise){
+    surpriseStrike();
+    if(checkPlayerDown()) return;
+    renderBattle();
+  }
+}
+function logClear(){ battleLogEl.innerHTML=''; }
+function log(msg, color){
+  const d = document.createElement('div');
+  d.textContent = msg;
+  if(color) d.style.color = color;
+  battleLogEl.appendChild(d);
+  battleLogEl.scrollTop = battleLogEl.scrollHeight;
+}
+
+function frontAlive(){ return battle.enemies.some(e=>e.alive && e.row==='front'); }
+function escortAlive(){ return battle.enemies.some(e=>e.alive && e.row==='escort'); }
+const DAMAGE_VARIANCE = 0.15;
+function rollDamage(base){
+  const factor = 1 + (Math.random()*2-1)*DAMAGE_VARIANCE;
+  return Math.max(1, Math.round(base*factor));
+}
+function bandMultiplier(bandsArr, band){
+  return bandsArr.includes(band) ? 1 : 0;
+}
+function predictedDamage(w, target){
+  if(!battle || !target) return {avg:0, min:0, max:0};
+  if(target.row!=='escort' && escortAlive()) return {avg:0, min:0, max:0};
+  const mult = bandMultiplier(w.bands, zoneOf(battle.distance));
+  if(mult<=0) return {avg:0, min:0, max:0};
+  let dmg = w.damage * mult;
+  if(target.row==='back' && frontAlive()) dmg *= 0.55; // 前衛に阻まれる期待値込み
+  const hitRoll = Math.max(0.1, Math.min(0.95, w.accuracy - target.evasion));
+  const avg = dmg * hitRoll; // 命中率・回避を反映した期待値
+  const min = dmg * (1-DAMAGE_VARIANCE) * hitRoll;
+  const max = dmg * (1+DAMAGE_VARIANCE) * hitRoll;
+  return {avg:Math.round(avg), min:Math.round(min), max:Math.round(max)};
+}
+function predictedDroneDamage(target){
+  if(!battle || !target) return {avg:0,min:0,max:0};
+  let min=0,max=0,avg=0;
+  player.droneSquadronIds.forEach(did=>{
+    const d = DRONE_SQUADRONS[did];
+    if(d.type!=='attack') return;
+    let dmg = d.damage;
+    if(target.row==='back' && frontAlive()) dmg *= 0.55;
+    const hitRoll = Math.max(0.1, Math.min(0.95, d.accuracy - target.evasion));
+    avg += dmg*hitRoll;
+    min += dmg*(1-DAMAGE_VARIANCE)*hitRoll;
+    max += dmg*(1+DAMAGE_VARIANCE)*hitRoll;
+  });
+  return {avg:Math.round(avg), min:Math.round(min), max:Math.round(max)};
+}
+function combinedPredictedDamage(target){
+  let min=0,max=0,avg=0;
+  player.equippedWeapons.forEach(wid=>{
+    const w = effectiveWeaponStats(WEAPONS[wid]);
+    if((player.weaponStages[wid]||0)>=3) return;
+    const pd = predictedDamage(w, target);
+    min+=pd.min; max+=pd.max; avg+=pd.avg;
+  });
+  if(player.droneSquadronIds.length>0){
+    const pd = predictedDroneDamage(target);
+    min+=pd.min; max+=pd.max; avg+=pd.avg;
+  }
+  return {avg,min,max};
+}
+const REPAIR_COST = {scrap:3, circuit:1};
+const REPAIR_COST_LABEL = Object.entries(REPAIR_COST).map(([m,n])=>MAT_NAMES[m]+'x'+n).join('/');
+function canAffordRepair(){
+  return Object.entries(REPAIR_COST).every(([m,n])=> (player.materials[m]||0) >= n);
+}
+
+function renderBattle(){
+  // 敵表示: 横一列(前衛/後衛はカード内バッジで区別)
+  enemyRowsEl.innerHTML='';
+  battle.enemies.forEach(en=>{
+    const c = document.createElement('div');
+    c.className='enemyCard' + (en.id===battle.selectedTarget?' selected':'') + (!en.alive?' dead':'');
+    const atkLabel = en.weaponType==='kinetic' ? '<span style="color:#ff6b6b">実体弾(貫通)</span>' : 'ビーム';
+    const enrageLabel = en.enraged ? ' <span style="color:#ff6b6b">【'+(en.unmanned?'暴走':'捨て身')+'】</span>' : (en.fled ? ' <span style="color:#8a94b8">(逃走)</span>' : '');
+    const rowBadge = `<span class="rowLabel">${en.row==='front'?'前衛':en.row==='escort'?'防空':'後衛'}</span>`;
+    const isProtectedBack = en.row==='back' && frontAlive();
+    const isEscortBlocked = en.row!=='escort' && escortAlive();
+    const guardWarn = isProtectedBack ? '<div class="erange" style="color:#ff6b6b">⚠ 前衛が健在 ―― 狙っても阻まれやすい(命中率大幅減)</div>' : '';
+    const escortWarn = isEscortBlocked ? '<div class="erange" style="color:#5ce1ff">🛡 防空ドローン健在 ―― 攻撃が一切届かない(先に撃破せよ)</div>' : '';
+    const droneDebuffTag = isDroneAttachedTo(en) ? '<div class="erange" style="color:#8ce89a">🛸 艦載機に取り付かれ機動力低下(実効機動'+effectiveMobility(en)+')</div>' : '';
+    c.innerHTML = `<div class="ename">${rowBadge}<span class="etypeicon ${en.type}" style="background:${en.color}"></span>${en.name}${enrageLabel}</div>
+      <div class="ebar-bg"><div class="ebar-fill" style="width:${Math.max(0,en.shield/en.maxShield*100)}%"></div></div>
+      <div class="erange">威力${en.damage}(命中${Math.round(en.weaponAccuracy*100)}%) / ${atkLabel}<br>回避${Math.round(en.evasion*100)}% / 機動${en.mobility===0?'固定':en.mobility} / 得意: ${en.bands.map(b=>BAND_NAMES[b]).join('/')}</div>${escortWarn}${guardWarn}${droneDebuffTag}`;
+    if(en.enraged) c.style.borderColor = '#ff6b6b';
+    else if(en.row==='escort') c.style.borderColor = '#5ce1ff';
+    else if(isEscortBlocked) c.style.borderColor = '#5ce1ff88';
+    else if(isProtectedBack) c.style.borderColor = '#ff9f4d';
+    c.onclick = ()=>{ if(en.alive){ battle.selectedTarget = en.id; renderBattle(); } };
+    enemyRowsEl.appendChild(c);
+  });
+
+  // キャラ配置ステージ
+  drawBattleStage();
+
+  // プレイヤーステータス
+  const ar = ARMORS[player.armorId];
+  const md = MODULES[player.moduleId];
+  const st2 = currentStats();
+  const shieldPct = Math.max(0, player.shieldBarrier/st2.maxShieldBarrier*100);
+  const hullPct = Math.max(0, player.hull/st2.maxHull*100);
+  const energyPct = Math.max(0, player.energy/st2.maxEnergy*100);
+  const weaponLines = player.equippedWeapons.map(wid=>{
+    const w = effectiveWeaponStats(WEAPONS[wid]);
+    return `${w.name}${w.stage>0?' <span style="color:#ff6b6b">['+w.stageName+']</span>':''} — 威力${w.damage} / 命中${Math.round(w.accuracy*100)}% / 有効距離: ${w.bands.map(b=>BAND_NAMES[b]).join('・')} / ${weaponResourceLabel(w)}`;
+  }).join('<br>');
+  playerBattleStatusEl.innerHTML = `
+    <div class="bar-row"><div class="bar-label">SHLD</div><div class="bar-bg"><div class="bar-fill fill-shield" style="width:${shieldPct}%"></div></div><div class="bar-num">${Math.ceil(player.shieldBarrier)}/${st2.maxShieldBarrier}</div></div>
+    <div class="bar-row"><div class="bar-label">HULL</div><div class="bar-bg"><div class="bar-fill fill-hull" style="width:${hullPct}%"></div></div><div class="bar-num">${Math.ceil(player.hull)}/${st2.maxHull}</div></div>
+    <div class="bar-row"><div class="bar-label">ENRG</div><div class="bar-bg"><div class="bar-fill fill-energy" style="width:${energyPct}%"></div></div><div class="bar-num">${Math.ceil(player.energy)}/${st2.maxEnergy}</div></div>
+    <div class="card-sub">装甲: ${ar.name}(船体HP+${ar.hullBonus} / 回避${Math.round(st2.evasion*100)}% / 機動力${st2.mobility}) / モジュール: ${md.name}<br>
+    ジェネレーター: ${GENERATORS[player.generatorId].name}(出力 ${currentPowerUsage()}/${currentPowerCapacity()})<br>
+    ${player.droneSquadronIds.length>0 ? '艦載機: '+player.droneSquadronIds.map(did=>DRONE_SQUADRONS[did].name+'('+(DRONE_SQUADRONS[did].type==='defense'?'自動迎撃':'距離を問わず攻撃')+' 戦力<span style="color:'+(droneStrengthOf(did)<=30?'#ff6b6b':'#8ce89a')+'">'+droneStrengthOf(did)+'%</span>)').join('、')+'<br>' : ''}
+    現在距離: ${battle.distance}/8 (${BAND_NAMES[zoneOf(battle.distance)]})<br>
+    ${st2.shieldStageName!=='正常'?'<span style="color:#ff6b6b">シールド発生装置: '+st2.shieldStageName+'(船体損傷で性能低下中)</span><br>':''}
+    ${weaponLines}</div>`;
+
+  // コマンド有効/無効 + 予想ダメージ
+  const curTarget = battle.enemies.find(e=>e.id===battle.selectedTarget && e.alive);
+  const predicted = curTarget ? combinedPredictedDamage(curTarget) : null;
+  const curZoneForRange = zoneOf(battle.distance);
+  const allWeaponsDown = player.equippedWeapons.every(wid=>(player.weaponStages[wid]||0)>=3);
+  const allOutOfRange = curTarget && player.equippedWeapons.every(wid=>{
+    if((player.weaponStages[wid]||0)>=3) return true;
+    return bandMultiplier(WEAPONS[wid].bands, curZoneForRange) <= 0;
+  });
+  if(curTarget && allOutOfRange && !allWeaponsDown){
+    cmdAttack.textContent = '攻撃(射程外)';
+  } else {
+    cmdAttack.textContent = '攻撃' + (predicted!==null ? ' (予想'+predicted.min+'~'+predicted.max+')' : '');
+  }
+  cmdAttack.disabled = turnLock || allWeaponsDown || battle.selectedTarget===null || allOutOfRange;
+  cmdClose.disabled = turnLock;
+  cmdFar.disabled = turnLock;
+  cmdGuard.disabled = turnLock;
+  if(battle.encounter.noRetreat){
+    cmdRetreat.textContent = '撤退不可';
+    cmdRetreat.disabled = true;
+  } else if(zoneOf(battle.distance) !== 2){
+    cmdRetreat.textContent = '撤退する(遠距離のみ)';
+    cmdRetreat.disabled = true;
+  } else {
+    cmdRetreat.textContent = '撤退する(成功率'+Math.round(RETREAT_CHANCE*100)+'%)';
+    cmdRetreat.disabled = turnLock;
+  }
+  const anyDegraded = player.equippedWeapons.some(wid=>(player.weaponStages[wid]||0)>0);
+  cmdRepair.style.display = anyDegraded ? 'inline-block' : 'none';
+  if(player.repairKits>0){
+    cmdRepair.textContent = '応急修理 (キットx1 所持'+player.repairKits+')';
+    cmdRepair.disabled = turnLock;
+  } else {
+    cmdRepair.textContent = '応急修理 ('+REPAIR_COST_LABEL+')';
+    cmdRepair.disabled = turnLock || !canAffordRepair();
+  }
+
+  // 武器装備トグル(戦闘中でも最大2門まで切替可能、対象への予想ダメージ付き)
+  weaponSelectRowEl.innerHTML='';
+  player.ownedWeapons.forEach(wid=>{
+    const wDef = effectiveWeaponStats(WEAPONS[wid]);
+    const equipped = player.equippedWeapons.includes(wid);
+    const chip = document.createElement('div');
+    chip.className = 'wchip'+(equipped?' equipped':'');
+    const pd = curTarget ? predictedDamage(wDef,curTarget) : null;
+    const dmgLabel = pd ? ' 予想'+pd.min+'~'+pd.max : '';
+    chip.textContent = wDef.name+' ('+weaponResourceLabel(wDef)+dmgLabel+')'+(equipped?' 装備中':'');
+    chip.onclick = ()=>{
+      if(turnLock) return;
+      sfxClick();
+      if(equipped){
+        if(player.equippedWeapons.length<=1){ toast('最低1門は装備が必要です', '#ff6b6b'); return; }
+        player.equippedWeapons = player.equippedWeapons.filter(x=>x!==wid);
+        log(wDef.name+'を装備から外した', '#8a94b8');
+      } else {
+        if(player.equippedWeapons.length >= maxWeaponSlots()){
+          toast('装備枠がいっぱいです('+maxWeaponSlots()+'門まで)', '#ff6b6b');
+          return;
+        }
+        if(currentPowerUsage() + WEAPONS[wid].powerCost > currentPowerCapacity()){
+          toast('出力上限を超えるため装備できません', '#ff6b6b');
+          return;
+        }
+        player.equippedWeapons.push(wid);
+        log(wDef.name+'を装備した', '#ffcf5c');
+      }
+      saveGame();
+      renderBattle();
+      resolveEnemyActions(false, ()=>{ saveGame(); renderBattle(); });
+    };
+    weaponSelectRowEl.appendChild(chip);
+  });
+}
+
+function removeRandomEncounterIfAny(){
+  if(!battle.encounter.isRandom) return;
+  spaceRandomEncounters = spaceRandomEncounters.filter(e=>e.id!==battle.encounter.id);
+  stationRandomEncounters = stationRandomEncounters.filter(e=>e.id!==battle.encounter.id);
+}
+function showVictoryOverlay(){
+  const st = document.getElementById('victoryStats');
+  st.innerHTML = '';
+  const rows = [];
+  const destroyedCount = battle.enemies.filter(e=>!e.fled).length;
+  const fledCount = battle.enemies.filter(e=>e.fled).length;
+  rows.push(['撃破', destroyedCount+' 隻']);
+  if(fledCount>0) rows.push(['取り逃がした', fledCount+' 隻']);
+  Object.entries(battle.totalMaterials).forEach(([m,n])=>{
+    rows.push([MAT_NAMES[m], '+'+n]);
+  });
+  rows.push(['資金', '+'+battle.totalCredits+' クレジット']);
+  rows.forEach((r,i)=>{
+    const row = document.createElement('div');
+    row.className='vRow';
+    row.style.animationDelay = (i*0.08)+'s';
+    row.innerHTML = `<span>${r[0]}</span><span class="vval">${r[1]}</span>`;
+    st.appendChild(row);
+  });
+  const noteRow = document.createElement('div');
+  noteRow.style.cssText='font-size:11px;color:var(--dim);margin-top:4px;';
+  noteRow.textContent = 'シールド・エネルギー・弾薬は全快した(船体HPは持ち越し)';
+  st.appendChild(noteRow);
+  document.getElementById('victoryOverlay').classList.add('show');
+}
+document.getElementById('victoryContinueBtn').onclick = ()=>{
+  sfxClick();
+  document.getElementById('victoryOverlay').classList.remove('show');
+  finishBattle();
+};
+
+function endBattleVictory(){
+  const matStr = Object.entries(battle.totalMaterials).map(([m,n])=>MAT_NAMES[m]+'x'+n).join(' / ') || 'なし';
+  log('=== 戦果 === 素材: '+matStr+' / クレジット: +'+battle.totalCredits, '#ffcf5c');
+  sfxVictory();
+  battle.encounter.cleared = true;
+  removeRandomEncounterIfAny();
+  showVictoryOverlay();
+}
+function endBattleRetreat(){
+  log('距離を取り、戦闘から離脱した', '#8a94b8');
+  toast('戦闘から離脱した(シールド・エネルギー全快)', '#8a94b8');
+  // 撤退直後に同じ敵へまた接触してしまわないよう、プレイヤーを引き離す
+  const enc = battle.encounter;
+  let dx = player.x - enc.x, dy = player.y - enc.y;
+  let d = Math.hypot(dx,dy);
+  if(d < 1){ dx = Math.random()-0.5; dy = Math.random()-0.5; d = Math.hypot(dx,dy)||1; }
+  const pushDist = 120;
+  player.x = Math.max(16, Math.min(W-16, player.x + (dx/d)*pushDist));
+  player.y = Math.max(16, Math.min(H-16, player.y + (dy/d)*pushDist));
+  player.tx = player.x; player.ty = player.y;
+  enc.retreatCooldownUntil = performance.now() + 2000;
+  finishBattle();
+}
+function finishBattle(){
+  inBattle = false;
+  battleScreen.classList.remove('show');
+  const st = currentStats();
+  player.shieldBarrier = st.maxShieldBarrier;
+  player.energy = st.maxEnergy;
+  player.ownedWeapons.forEach(wid=>{ if(WEAPONS[wid].type==='kinetic') player.weaponAmmo[wid] = WEAPONS[wid].maxAmmo; });
+  battle = null;
+  saveGame();
+}
+
+function surpriseStrike(){
+  const attacker = battle.enemies.find(e=>e.alive && e.row==='front') || battle.enemies.find(e=>e.alive);
+  if(!attacker) return;
+  const cst = currentStats();
+  const mult = bandMultiplier(attacker.bands, zoneOf(battle.distance));
+  if(mult<=0) return;
+  const hitRoll = Math.max(0.1, Math.min(0.95, attacker.weaponAccuracy - cst.evasion));
+  if(Math.random() > hitRoll){
+    log(attacker.name+'の奇襲は外れた', '#4fd6ff');
+    return;
+  }
+  const dmg = rollDamage(attacker.damage * mult);
+  const pierce = attacker.weaponType==='kinetic';
+  if(tryInterceptAttack(attacker.name)) return;
+  const hullHit = applyDamageToPlayer(dmg, pierce);
+  player.flashTimer = 1;
+  sfxHit();
+  spawnBeam(attacker.screenX, attacker.screenY, playerScreenPos.x, playerScreenPos.y, pierce?'#ff6b6b':'#ff9f4d', pierce);
+  triggerShake(3, 0.15);
+  if(pierce || hullHit){
+    log(attacker.name+'の先制攻撃 → 船体に'+Math.round(dmg)+'ダメージ', '#ff6b6b');
+    spawnDamageText(playerScreenPos.x, playerScreenPos.y-16, '-'+Math.round(dmg)+' HULL', '#ff6b6b');
+  } else {
+    log(attacker.name+'の先制攻撃 → シールドが'+Math.round(dmg)+'吸収', '#4fd6ff');
+    spawnDamageText(playerScreenPos.x, playerScreenPos.y-16, '-'+Math.round(dmg)+' SHLD', '#4fd6ff');
+  }
+  rollWeaponDegradeOnHit();
+  rollDroneAttritionRandom();
+}
+let turnLock = false;
+function rollDroneAttritionRandom(){
+  if(player.droneSquadronIds.length===0) return;
+  const alive = player.droneSquadronIds.filter(did=>droneStrengthOf(did)>0);
+  if(alive.length===0) return;
+  const pick = alive[Math.floor(Math.random()*alive.length)];
+  rollDroneAttrition(pick);
+}
+function rollDroneAttrition(did){
+  if(!did || droneStrengthOf(did)<=0) return;
+  if(Math.random() < DRONE_ATTRITION_CHANCE){
+    const loss = DRONE_ATTRITION_MIN + Math.floor(Math.random()*(DRONE_ATTRITION_MAX-DRONE_ATTRITION_MIN+1));
+    player.droneStrengths[did] = Math.max(0, droneStrengthOf(did) - loss);
+    const d = DRONE_SQUADRONS[did];
+    if(player.droneStrengths[did]<=0){
+      log('警告: '+d.name+'が壊滅した!', '#ff6b6b');
+      toast(d.name+'壊滅', '#ff6b6b');
+    } else {
+      log(d.name+'が迎撃を受け勢力を落とした(残り'+player.droneStrengths[did]+'%)', '#ff6b6b');
+    }
+  }
+}
+function rollWeaponDegradeOnHit(){
+  player.equippedWeapons.forEach(wid=>{
+    const stage = player.weaponStages[wid]||0;
+    if(stage < 3 && Math.random() < WEAPONS[wid].breakChance){
+      player.weaponStages[wid] = stage+1;
+      sfxWarn();
+      log('警告: '+WEAPONS[wid].name+'が'+WEAPON_DEGRADE_STAGES[stage+1].name+'状態に', '#ff6b6b');
+    }
+  });
+}
+function isDroneAttachedTo(en){
+  return player.droneSquadronIds.some(did=>{
+    if(DRONE_SQUADRONS[did].type!=='attack' || droneStrengthOf(did)<=0) return false;
+    const st = battle.droneState[did];
+    return st && st.turnsActive>=1 && st.targetId===en.id && en.alive;
+  });
+}
+function effectiveMobility(en){
+  return Math.max(0, en.mobility - (isDroneAttachedTo(en) ? DRONE_MOBILITY_DEBUFF : 0));
+}
+const DRONE_MOBILITY_DEBUFF = 1;
+function doSingleEnemyAttack(en, defendActive, cst, preDistance){
+  const curZone = zoneOf(preDistance);
+  const mult = bandMultiplier(en.bands, curZone);
+  if(mult<=0){
+    // 射程外: 自分の得意距離へ自ら位置取りする(この行動で攻撃はしない)
+    const mob = effectiveMobility(en);
+    if(!mob){
+      const reason = isDroneAttachedTo(en) ? '艦載機隊にまとわりつかれ機動力を奪われて' : '';
+      log(en.name+'は'+reason+'自艦の位置を維持し様子見している', '#8a94b8');
+      return;
+    }
+    const nearestBandZone = en.bands.reduce((a,b)=> Math.abs(b-curZone)<Math.abs(a-curZone)?b:a, en.bands[0]);
+    const zoneCenter = nearestBandZone===0?1 : nearestBandZone===1?4 : 7;
+    const dir = zoneCenter > preDistance ? 1 : -1;
+    const step = Math.min(mob, Math.abs(zoneCenter-preDistance));
+    battle.distance = Math.max(0, Math.min(8, battle.distance + dir*step));
+    log(en.name+'が距離を'+(dir>0?'離した':'詰めた')+'(機動力'+mob+(isDroneAttachedTo(en)?'、艦載機に妨害され低下中':'')+') → '+BAND_NAMES[zoneOf(battle.distance)], '#8a94b8');
+    return;
+  }
+  let hitRoll = Math.max(0.1, Math.min(0.95, en.weaponAccuracy - cst.evasion));
+  if(en.enraged) hitRoll = Math.min(0.97, hitRoll + ENRAGE_ACC_BONUS);
+  if(Math.random() > hitRoll){
+    log(en.name+'の攻撃を回避した', '#4fd6ff');
+    spawnDamageText(playerScreenPos.x, playerScreenPos.y-16, 'MISS', '#4fd6ff');
+    sfxEvade();
+    return;
+  }
+  let dmg = en.damage * mult;
+  if(en.enraged) dmg *= ENRAGE_DMG_MULT;
+  if(defendActive) dmg *= 0.5;
+  dmg = rollDamage(dmg);
+  const pierce = en.weaponType==='kinetic';
+  if(tryInterceptAttack(en.name)) return;
+  const hullHit = applyDamageToPlayer(dmg, pierce);
+  player.flashTimer = 1;
+  sfxHit();
+  spawnBeam(en.screenX, en.screenY, playerScreenPos.x, playerScreenPos.y, pierce?'#ff6b6b':'#ff9f4d', pierce);
+  triggerShake(3, 0.15);
+  if(pierce){
+    log(en.name+'の実体弾 → シールド無視で船体に'+Math.round(dmg)+'ダメージ', '#ff6b6b');
+    spawnDamageText(playerScreenPos.x, playerScreenPos.y-16, '-'+Math.round(dmg)+' HULL', '#ff6b6b');
+  } else if(hullHit){
+    log(en.name+'の攻撃 → シールドを貫通し船体に'+Math.round(dmg)+'ダメージ', '#ff6b6b');
+    spawnDamageText(playerScreenPos.x, playerScreenPos.y-16, '-'+Math.round(dmg)+' HULL', '#ff6b6b');
+  } else {
+    log(en.name+'の攻撃 → シールドが'+Math.round(dmg)+'吸収', '#4fd6ff');
+    spawnDamageText(playerScreenPos.x, playerScreenPos.y-16, '-'+Math.round(dmg)+' SHLD', '#4fd6ff');
+  }
+  rollWeaponDegradeOnHit();
+  rollDroneAttritionRandom();
+}
+const FLEE_HP_THRESHOLD = 0.2;
+const FLEE_CHANCE = 0.3;
+function tryEnemyFlee(en){
+  if(en.unmanned) return false; // 無人機/自動化ユニットは逃走しない(何の判定もせず沈黙して隠す)
+  if(en.fleeAttempted) return false; // 一戦闘につき一度だけ試行
+  if(en.shield > en.maxShield*FLEE_HP_THRESHOLD) return false;
+  en.fleeAttempted = true;
+  if(Math.random() < FLEE_CHANCE){
+    en.alive = false;
+    en.fled = true;
+    log('=== '+en.name+'が戦線を離脱し、逃走した! ===', '#8a94b8');
+    toast(en.name+'を取り逃がした……', '#8a94b8');
+    spawnDamageText(en.screenX, en.screenY-16, '逃走', '#8a94b8');
+    if(battle.selectedTarget===en.id){
+      const na = battle.enemies.find(e=>e.alive);
+      battle.selectedTarget = na ? na.id : null;
+    }
+    return true;
+  }
+  log(en.name+'は逃走を試みたが失敗した', '#8a94b8');
+  return false;
+}
+function resolveEnemyActions(defendActive, onComplete, preDistance){
+  if(preDistance===undefined) preDistance = battle.distance;
+  // ターン毎のエネルギー再充填(コア容量に応じた割合回復)
+  const cst = currentStats();
+  const regenAmt = Math.max(1, Math.round(cst.maxEnergy * 0.12));
+  if(player.energy < cst.maxEnergy){
+    player.energy = Math.min(cst.maxEnergy, player.energy + regenAmt);
+    log('コア再充填 +'+regenAmt+' ENRG', '#c98bff');
+  }
+  // ターン毎のシールド再生(戦闘中もシールドが機能し続けるように、ただし控えめ)
+  if(player.shieldBarrier < cst.maxShieldBarrier){
+    const shRegen = Math.max(1, Math.round(cst.maxShieldBarrier * 0.08));
+    player.shieldBarrier = Math.min(cst.maxShieldBarrier, player.shieldBarrier + shRegen);
+    log('シールド再生 +'+shRegen, '#4fd6ff');
+  }
+
+  battle.roundsElapsed += 1;
+  // 艦載機隊はどのコマンドを選んでも毎ターン自動で出撃・攻撃する(攻撃型のみ、初動の1ターン目は準備中につき攻撃なし)
+  player.droneSquadronIds.filter(did=>DRONE_SQUADRONS[did].type==='attack').forEach(did=>{
+    if(battle.roundsElapsed >= 2){
+      let dTarget = battle.enemies.find(e=>e.id===battle.selectedTarget && e.alive);
+      if(!dTarget) dTarget = battle.enemies.find(e=>e.alive);
+      if(dTarget) fireDroneSquadron(did, dTarget);
+    } else if(battle.roundsElapsed===1){
+      log(DRONE_SQUADRONS[did].name+'が展開準備中(次ターンから攻撃開始)', '#8a94b8');
+    }
+  });
+  renderBattle();
+  if(battle.enemies.every(e=>!e.alive)){
+    endBattleVictory();
+    return;
+  }
+
+  const actors = battle.enemies.filter(en=>en.alive);
+  turnLock = true;
+  let i = 0;
+  function step(){
+    if(i >= actors.length){
+      turnLock = false;
+      if(onComplete) onComplete();
+      return;
+    }
+    const en = actors[i]; i++;
+    if(!en.alive){ setTimeout(step, 60); return; } // 既に逃走済みならスキップ
+    if(tryEnemyFlee(en)){
+      renderBattle();
+      if(battle.enemies.every(e=>!e.alive)){
+        turnLock = false;
+        endBattleVictory();
+        return;
+      }
+      setTimeout(step, 420);
+      return;
+    }
+    doSingleEnemyAttack(en, defendActive, cst, preDistance);
+    renderBattle();
+    if(player.hull<=0){
+      turnLock = false;
+      finishBattle();
+      handlePlayerDeath();
+      return; // 全滅、以降の敵の行動はキャンセル
+    }
+    setTimeout(step, 420);
+  }
+  setTimeout(step, 320); // 自分の行動演出が落ち着いてから敵が反撃する
+}
+function checkPlayerDown(){
+  if(player.hull<=0){
+    finishBattle();
+    handlePlayerDeath();
+    return true;
+  }
+  return false;
+}
+function handlePlayerDeath(){
+  document.getElementById('deathOverlay').classList.add('show');
+}
+document.getElementById('deathContinueBtn').onclick = ()=>{
+  sfxClick();
+  document.getElementById('deathOverlay').classList.remove('show');
+  respawnAtBase();
+  updateHud();
+};
+document.getElementById('deathNewGameBtn').onclick = ()=>{
+  if(!confirm('セーブデータを削除して最初からやり直します。よろしいですか?')) return;
+  try{ localStorage.removeItem('spaceRpgSave'); }catch(e){}
+  location.reload();
+};
+function dropLootFor(en){
+  en.drops.forEach(([mat,min,max,chance])=>{
+    if(Math.random()<chance){
+      const n = Math.floor(Math.random()*(max-min+1))+min;
+      player.materials[mat] = (player.materials[mat]||0)+n;
+      if(battle) battle.totalMaterials[mat] = (battle.totalMaterials[mat]||0)+n;
+      log('+'+n+' '+MAT_NAMES[mat], '#ffcf5c');
+    }
+  });
+  if(en.creditsReward){
+    player.credits += en.creditsReward;
+    if(battle) battle.totalCredits += en.creditsReward;
+    log('+'+en.creditsReward+' クレジット(撃破報酬)', '#ffcf5c');
+  }
+  updateMatBar();
+  updateHud();
+}
+
+const ENRAGE_THRESHOLD = 0.3;
+const ENRAGE_DMG_MULT = 1.4;
+const ENRAGE_ACC_BONUS = 0.15;
+function checkEnrage(en){
+  if(!en.enraged && en.shield <= en.maxShield*ENRAGE_THRESHOLD){
+    en.enraged = true;
+    const label = en.unmanned ? '暴走' : '捨て身';
+    const verb = en.unmanned ? '制御を失い暴走状態に陥った' : '捨て身の反撃に転じた';
+    log('=== '+en.name+'が'+verb+'! ===', '#ff6b6b');
+    toast(en.name+': '+label+'モードに突入', '#ff6b6b');
+    spawnDamageText(en.screenX, en.screenY-24, label+'!', '#ff6b6b');
+    sfxWarn();
+  }
+}
+const DRONE_ATTRITION_CHANCE = 0.25;
+const DRONE_ATTRITION_MIN = 8, DRONE_ATTRITION_MAX = 18;
+function fireDroneSquadron(did, target){
+  const d = DRONE_SQUADRONS[did];
+  const strength = droneStrengthOf(did);
+  if(strength<=0){
+    log(d.name+'は壊滅しており出撃できない(母船で再編成が必要)', '#8a94b8');
+    return;
+  }
+  if(player.energy < d.energyCost){
+    log(d.name+': エネルギー不足で出撃指示できない', '#ff6b6b');
+    return;
+  }
+  player.energy -= d.energyCost;
+  // 艦載機は自艦から独立して機動するため距離帯の制約を受けない
+  const st = droneState(did);
+  const alreadyStationed = st.turnsActive >= 1;
+  st.turnsActive += 1;
+  st.targetId = target.id;
+  sfxFire(d.pierce);
+  if(alreadyStationed){
+    // 既に目標付近に展開済みなら、その場から発射する
+    spawnBeam(target.screenX-18, target.screenY-14, target.screenX, target.screenY, '#8ce89a', d.pierce);
+  } else {
+    spawnBeam(playerScreenPos.x, playerScreenPos.y-14, target.screenX, target.screenY, '#8ce89a', d.pierce);
+  }
+  let blockChance = 1;
+  if(target.row==='back' && frontAlive()) blockChance = 0.55;
+  // 残存戦力は命中率にのみ反映(威力は据え置き)
+  const hitRoll = Math.max(0.05, Math.min(0.95, d.accuracy - target.evasion) * (strength/100));
+  const escortBlocked = target.row!=='escort' && escortAlive();
+  if(escortBlocked){
+    log(d.name+': 防空ドローンに迎撃され、攻撃が届かない', '#5ce1ff');
+    spawnDamageText(target.screenX, target.screenY-30, '防空', '#5ce1ff');
+  } else if(target.row==='back' && frontAlive() && Math.random() > blockChance){
+    log(d.name+': 前衛に阻まれ、攻撃が逸れた', '#8a94b8');
+    spawnDamageText(target.screenX, target.screenY-30, '阻止', '#8a94b8');
+  } else if(Math.random() > hitRoll){
+    log(d.name+': '+target.name+'は攻撃を回避した', '#8a94b8');
+    spawnDamageText(target.screenX, target.screenY-30, 'MISS', '#8a94b8');
+  } else {
+    const dmg = rollDamage(d.damage);
+    target.shield -= dmg;
+    target.flashTimer = 1;
+    log(d.name+': '+target.name+'に'+Math.round(dmg)+'ダメージ', '#8ce89a');
+    spawnDamageText(target.screenX, target.screenY-30, '-'+Math.round(dmg), '#8ce89a');
+    if(target.shield<=0 && target.alive){
+      target.alive=false;
+      log(target.name+'を撃破!', '#ffcf5c');
+      spawnExplosion(target.screenX, target.screenY, target.color);
+      sfxExplosion();
+      dropLootFor(target);
+    } else {
+      checkEnrage(target);
+    }
+  }
+}
+function fireWeaponAt(wid, target){
+  const w = effectiveWeaponStats(WEAPONS[wid]);
+  if((player.weaponStages[wid]||0)>=3){ log(w.name+'は機能停止中で発射できない', '#8a94b8'); return; }
+  const mult = bandMultiplier(w.bands, zoneOf(battle.distance));
+  if(mult<=0){
+    log(w.name+': 射程外のため発射しなかった(有効距離: '+w.bands.map(b=>BAND_NAMES[b]).join('・')+')', '#8a94b8');
+    return;
+  }
+  if(w.type==='beam'){
+    if(player.energy < w.energyCost){ log(w.name+': エネルギー不足で発射できない', '#ff6b6b'); return; }
+    player.energy -= w.energyCost;
+  } else {
+    ensureAmmo(wid);
+    if(player.weaponAmmo[wid] < w.ammoCost){ log(w.name+': 弾切れで発射できない', '#ff6b6b'); return; }
+    player.weaponAmmo[wid] -= w.ammoCost;
+  }
+
+  sfxFire(w.type==='kinetic');
+  spawnBeam(playerScreenPos.x, playerScreenPos.y, target.screenX, target.screenY, w.type==='kinetic'?'#ffcf5c':'#4fd6ff', w.type==='kinetic');
+
+  let blockChance = 1;
+  if(target.row==='back' && frontAlive()) blockChance = 0.55;
+  const hitRoll = Math.max(0.1, Math.min(0.95, w.accuracy - target.evasion));
+  const escortBlocked = target.row!=='escort' && escortAlive();
+
+  if(escortBlocked){
+    log(w.name+': 防空ドローンに阻まれ、攻撃が届かない', '#5ce1ff');
+    spawnDamageText(target.screenX, target.screenY-16, '防空', '#5ce1ff');
+  } else if(target.row==='back' && frontAlive() && Math.random() > blockChance){
+    log(w.name+': 前衛に阻まれ、攻撃が逸れた', '#8a94b8');
+    spawnDamageText(target.screenX, target.screenY-16, '阻止', '#8a94b8');
+  } else if(Math.random() > hitRoll){
+    log(w.name+': '+target.name+'は攻撃を回避した', '#8a94b8');
+    spawnDamageText(target.screenX, target.screenY-16, 'MISS', '#8a94b8');
+    sfxEvade();
+  } else {
+    const dmg = rollDamage(w.damage * mult);
+    target.shield -= dmg;
+    target.flashTimer = 1;
+    log(w.name+': '+target.name+'に'+Math.round(dmg)+'ダメージ', '#4fd6ff');
+    spawnDamageText(target.screenX, target.screenY-16, '-'+Math.round(dmg), '#4fd6ff');
+    sfxHit();
+    if(target.shield<=0 && target.alive){
+      target.alive=false;
+      log(target.name+'を撃破!', '#ffcf5c');
+      spawnExplosion(target.screenX, target.screenY, target.color);
+      sfxExplosion();
+      dropLootFor(target);
+    } else {
+      checkEnrage(target);
+    }
+  }
+}
+cmdAttack.onclick = ()=>{
+  if(!battle || turnLock) return;
+  const preDistance = battle.distance;
+  let target = battle.enemies.find(e=>e.id===battle.selectedTarget && e.alive);
+  if(!target) return;
+
+  player.equippedWeapons.forEach(wid=>{
+    if(!target || !target.alive){
+      target = battle.enemies.find(e=>e.alive);
+      if(target) battle.selectedTarget = target.id;
+    }
+    if(!target) return;
+    fireWeaponAt(wid, target);
+  });
+
+  const stillAlive = battle.enemies.find(e=>e.id===battle.selectedTarget && e.alive);
+  if(!stillAlive){ const na = battle.enemies.find(e=>e.alive); battle.selectedTarget = na?na.id:null; }
+
+  renderBattle();
+  if(battle.enemies.every(e=>!e.alive)){ endBattleVictory(); return; }
+  resolveEnemyActions(false, ()=>{ renderBattle(); }, preDistance);
+};
+
+cmdClose.onclick = ()=>{
+  if(!battle || turnLock) return;
+  sfxClick();
+  const preDistance = battle.distance;
+  const st = currentStats();
+  battle.distance = Math.max(0, battle.distance - st.mobility);
+  log('距離を詰めた(機動力'+st.mobility+') → '+BAND_NAMES[zoneOf(battle.distance)], '#4fd6ff');
+  renderBattle();
+  resolveEnemyActions(false, ()=>{ renderBattle(); }, preDistance);
+};
+cmdFar.onclick = ()=>{
+  if(!battle || turnLock) return;
+  sfxClick();
+  const preDistance = battle.distance;
+  const st = currentStats();
+  battle.distance = Math.min(8, battle.distance + st.mobility);
+  log('距離を離した(機動力'+st.mobility+') → '+BAND_NAMES[zoneOf(battle.distance)], '#4fd6ff');
+  renderBattle();
+  resolveEnemyActions(false, ()=>{ renderBattle(); }, preDistance);
+};
+const RETREAT_CHANCE = 0.65;
+cmdRetreat.onclick = ()=>{
+  if(!battle || turnLock) return;
+  sfxClick();
+  if(battle.encounter.noRetreat){
+    log('この敵は退路を塞いでいる ―― 撤退できない!', '#ff6b6b');
+    toast('撤退不可!', '#ff6b6b');
+    return;
+  }
+  if(zoneOf(battle.distance) !== 2){
+    log('遠距離まで離れないと撤退を試みられない', '#ff6b6b');
+    return;
+  }
+  const preDistance = battle.distance;
+  const success = Math.random() < RETREAT_CHANCE;
+  if(success){
+    log('離脱に成功!', '#4fd6ff');
+    renderBattle();
+    resolveEnemyActions(false, ()=>{ if(battle) endBattleRetreat(); }, preDistance);
+  } else {
+    log('離脱に失敗した……追撃を受ける!', '#ff6b6b');
+    toast('撤退失敗!', '#ff6b6b');
+    renderBattle();
+    resolveEnemyActions(false, ()=>{ renderBattle(); }, preDistance);
+  }
+};
+cmdGuard.onclick = ()=>{
+  if(!battle || turnLock) return;
+  sfxClick();
+  const preDistance = battle.distance;
+  log('防御態勢を取った', '#8a94b8');
+  renderBattle();
+  resolveEnemyActions(true, ()=>{ renderBattle(); }, preDistance);
+};
+cmdRepair.onclick = ()=>{
+  if(!battle || turnLock) return;
+  sfxClick();
+  const preDistance = battle.distance;
+  if(player.repairKits>0){
+    player.repairKits -= 1;
+    player.equippedWeapons.forEach(wid=>{
+      player.weaponStages[wid] = Math.max(0, (player.weaponStages[wid]||0)-2);
+    });
+    log('応急修理: 修理キットで装備武装の劣化を2段階分回復した(完全修理は母船で)', '#4fd6ff');
+  } else if(canAffordRepair()){
+    Object.entries(REPAIR_COST).forEach(([m,n])=> player.materials[m]-=n);
+    player.equippedWeapons.forEach(wid=>{
+      player.weaponStages[wid] = Math.max(0, (player.weaponStages[wid]||0)-1);
+    });
+    log('応急修理: 予備部品で装備武装の劣化を1段階分回復した', '#4fd6ff');
+    updateMatBar();
+  } else {
+    log('素材・キット不足で応急修理できない ('+REPAIR_COST_LABEL+')', '#ff6b6b');
+    return;
+  }
+  renderBattle();
+  resolveEnemyActions(false, ()=>{ renderBattle(); }, preDistance);
+};
+
+/* ============ 起動 ============ */
+let lastBattleT = performance.now();
+function battleAnimFrame(t){
+  const dt = Math.min(0.05, (t-lastBattleT)/1000);
+  lastBattleT = t;
+  if(inBattle && battle){
+    if(player.flashTimer>0) player.flashTimer = Math.max(0, player.flashTimer-dt*4);
+    battle.enemies.forEach(en=>{ if(en.flashTimer>0) en.flashTimer = Math.max(0, en.flashTimer-dt*4); });
+    updateBattleEffects(dt);
+    drawBattleStage();
+  }
+  requestAnimationFrame(battleAnimFrame);
+}
+
+function beginGame(shouldLoad){
+  document.getElementById('introOverlay').style.display='none';
+  resize();
+  if(shouldLoad) loadGame();
+  updateHud(); updateMatBar();
+  requestAnimationFrame(frame);
+  requestAnimationFrame(battleAnimFrame);
+}
+const hasSave = !!localStorage.getItem('spaceRpgSave');
+const loadGameBtn = document.getElementById('loadGameBtn');
+const newGameBtn = document.getElementById('newGameBtn');
+if(hasSave){
+  loadGameBtn.style.display = 'inline-block';
+  newGameBtn.textContent = '最初からやり直す';
+}
+loadGameBtn.onclick = ()=>{ beginGame(true); };
+newGameBtn.onclick = ()=>{
+  if(hasSave && !confirm('セーブデータを削除して最初から始めます。よろしいですか?')) return;
+  if(hasSave){ try{ localStorage.removeItem('spaceRpgSave'); }catch(e){} }
+  beginGame(false);
+};
+document.getElementById('testModeBtn').onclick = ()=>{
+  if(hasSave && !confirm('セーブデータを削除してテストモードで開始します。よろしいですか?')) return;
+  if(hasSave){ try{ localStorage.removeItem('spaceRpgSave'); }catch(e){} }
+  beginGame(false);
+  Object.keys(player.materials).forEach(m=>{ player.materials[m] = 50; });
+  player.credits = 100;
+  updateMatBar(); updateHud();
+  toast('テストモード: 素材50・資金100でスタート', '#ffcf5c');
+};
+resize();
+})();
+</script>
+</body>
+</html>
