@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>祈祷の祠 - 星座プランナー</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cinzel+Decorative:wght@700&family=Noto+Serif+JP:wght@400;600&display=swap');
+
+:root {
+  --bg: #0b0910;
+  --bg2: #14101a;
+  --panel: #1a1420;
+  --panel2: #201828;
+  --border: #34283f;
+  --text: #ded2c4;
+  --text-dim: #8f8290;
+  --gold: #c9a24a;
+  --gold-bright: #e6c777;
+  --c-asc: #b48cf0;
+  --c-chaos: #e0475a;
+  --c-eld: #4fce8a;
+  --c-ord: #e0b23f;
+  --c-prim: #4ea8e0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, #2a1f38 0%, transparent 60%),
+    linear-gradient(180deg, var(--bg2), var(--bg) 40%);
+  color: var(--text);
+  font-family: 'Noto Serif JP', serif;
+  min-height: 100vh;
+  padding: 28px 16px 80px;
+}
+
+.wrap { max-width: 980px; margin: 0 auto; }
+
+header {
+  text-align: center;
+  margin-bottom: 28px;
+  position: relative;
+}
+header::before, header::after {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  margin: 14px auto;
+}
+h1 {
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+  font-size: 30px;
+  letter-spacing: 3px;
+  color: var(--gold-bright);
+  margin: 0;
+  text-shadow: 0 0 24px rgba(230,199,119,0.35);
+}
+.subtitle {
+  font-size: 13px;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  margin-top: 4px;
+}
+
+.budget-bar {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.sticky-top {
+  position: sticky;
+  top: 10px;
+  z-index: 20;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  border-radius: 10px;
+  padding-bottom: 2px;
+  margin-bottom: 20px;
+}
+.budget-label {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.budget-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 6px;
+  background: #0d0912;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.budget-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-bright));
+  transition: width .3s ease, background .3s ease;
+}
+.budget-fill.over { background: linear-gradient(90deg, #e0475a, #ff7a86); }
+.budget-num {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--gold-bright);
+  min-width: 74px;
+  text-align: right;
+}
+.budget-num.over { color: #ff7a86; }
+
+.affinity-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 0;
+}
+.aff-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 10px;
+  text-align: center;
+}
+.aff-dot {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  margin: 0 auto 8px;
+  box-shadow: 0 0 14px 2px currentColor;
+}
+.aff-name { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; }
+.aff-val { font-family: 'Cinzel', serif; font-weight: 700; font-size: 20px; margin-top: 2px; }
+.aff-req { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.aff-req.short { color: #ff7a86; }
+
+.crossroads {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+  justify-content: center;
+}
+.cr-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-dim);
+  transition: all .15s;
+  user-select: none;
+}
+.cr-toggle.active {
+  color: var(--text);
+  border-color: currentColor;
+  box-shadow: 0 0 10px -2px currentColor;
+}
+.cr-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+.tier-block { margin-bottom: 30px; }
+.tier-title {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.star-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.star-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all .15s ease;
+  position: relative;
+}
+.star-card:hover { border-color: var(--gold); }
+.star-card.selected {
+  background: var(--panel2);
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 1px var(--gold), 0 0 18px -6px var(--gold);
+}
+.star-card.locked { opacity: 0.55; }
+.star-card.locked.selected { opacity: 1; border-color: #ff7a86; box-shadow: inset 0 0 0 1px #ff7a86; }
+
+.star-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.star-name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+}
+.star-cost {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  color: var(--gold);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+.star-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.star-affix { display: flex; gap: 10px; margin-top: 8px; font-size: 11px; color: var(--text-dim); flex-wrap: wrap; }
+.affix-group { display: flex; align-items: center; gap: 4px; }
+.pip { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.req-warn { color: #ff7a86; font-size: 10.5px; margin-top: 6px; }
+
+.checkbox {
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.star-card.selected .checkbox { background: var(--gold); border-color: var(--gold); }
+.checkbox svg { display: none; width: 10px; height: 10px; }
+.star-card.selected .checkbox svg { display: block; }
+
+.footer-note {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-top: 30px;
+  line-height: 1.8;
+}
+
+.mode-tabs {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+.mode-tab {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all .15s;
+}
+.mode-tab.active {
+  color: var(--bg);
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+.target-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+.target-panel-title {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+.target-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  min-height: 20px;
+}
+.target-chip {
+  font-size: 12px;
+  background: var(--panel2);
+  border: 1px solid var(--gold);
+  color: var(--gold-bright);
+  border-radius: 14px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.target-chip .x { cursor: pointer; opacity: .7; }
+.target-chip .x:hover { opacity: 1; color: #ff7a86; }
+.target-empty { font-size: 12px; color: var(--text-dim); }
+
+.deficit-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.deficit-pill {
+  font-size: 11px;
+  border-radius: 10px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
+}
+.deficit-pill.ok { color: var(--text-dim); }
+.deficit-pill.need { border-color: #ff7a86; color: #ff9aa3; }
+
+.solve-btn {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  letter-spacing: 1px;
+  background: var(--gold);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.solve-btn:hover { background: var(--gold-bright); }
+.solve-btn:disabled { background: var(--border); color: var(--text-dim); cursor: default; }
+
+.suggest-result { margin-top: 12px; font-size: 12px; color: var(--text-dim); line-height: 1.9; }
+.suggest-result .item { color: var(--text); }
+.suggest-result .cost { color: var(--gold); }
+
+.star-tag-btn {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  font-size: 13px;
+  transition: all .15s;
+}
+.star-tag-btn.is-target { color: var(--gold); border-color: var(--gold); background: rgba(230,199,119,0.12); }
+
+.star-card.suggested { border-color: var(--c-eld); box-shadow: inset 0 0 0 1px var(--c-eld); }
+.suggested-badge {
+  position: absolute; top: 10px; right: 10px;
+  font-size: 9px; letter-spacing: .5px;
+  background: var(--c-eld); color: #0b1f14;
+  border-radius: 4px; padding: 1px 6px;
+  font-weight: 700;
+}
+.star-card.excluded { opacity: 0.4; }
+.excluded-badge {
+  position: absolute; top: 10px; right: 10px;
+  font-size: 9px; letter-spacing: .5px;
+  background: var(--c-chaos); color: #2a0a0d;
+  border-radius: 4px; padding: 1px 6px;
+  font-weight: 700;
+}
+.star-tag-btn.is-excluded { color: var(--c-chaos); border-color: var(--c-chaos); background: rgba(224,71,90,0.12); }
+.star-tag-btn.is-partial { color: var(--c-ord); border-color: var(--c-ord); background: rgba(224,178,63,0.12); }
+
+.partial-control {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: rgba(224,178,63,0.06);
+  border: 1px solid var(--c-ord);
+  border-radius: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.node-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 0;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1.5;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.node-row:last-child { border-bottom: none; }
+.node-row input[type="checkbox"] { margin-top: 2px; accent-color: var(--c-ord); flex-shrink: 0; }
+.node-label { color: var(--c-ord); font-family: 'Cinzel', serif; font-size: 10px; flex-shrink: 0; min-width: 18px; }
+.node-text { color: var(--text); flex: 1 1 auto; min-width: 0; white-space: normal; word-break: break-word; }
+.node-pet { display: block; color: var(--c-prim); font-size: 10.5px; margin-top: 2px; }
+.node-pc-label { color: var(--gold); font-size: 9.5px; }
+.partial-summary { font-size: 10px; color: var(--text-dim); margin-top: 6px; }
+.reset-btn {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 1px;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.reset-btn:hover { color: #ff9aa3; border-color: #ff7a86; }
+
+.cr-x {
+  width: 16px; height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  margin-left: 2px;
+}
+.cr-x:hover, .cr-x.active { color: var(--c-chaos); border-color: var(--c-chaos); background: rgba(224,71,90,0.12); }
+
+.quick-calc-btn {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 1px;
+  background: var(--panel2);
+  color: var(--gold-bright);
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.quick-calc-btn:hover { background: var(--gold); color: var(--bg); }
+
+.summary-btn-wrap { position: relative; }
+.summary-btn {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 1px;
+  background: var(--panel2);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: default;
+  white-space: nowrap;
+}
+.summary-btn { cursor: pointer; }
+.summary-btn-wrap:hover .summary-btn { color: var(--gold-bright); border-color: var(--gold); }
+.summary-tooltip {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: 320px;
+  max-height: 420px;
+  overflow-y: auto;
+  background: #0a0810;
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.9;
+  color: var(--text);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.65);
+  z-index: 60;
+  text-align: left;
+}
+.summary-tooltip.open { display: block; }
+.summary-tooltip .st-row { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--border); padding: 3px 0; }
+.summary-tooltip .st-label { color: var(--text-dim); }
+.summary-tooltip .st-val { color: var(--gold-bright); white-space: nowrap; }
+.summary-tooltip .st-empty { color: var(--text-dim); text-align: center; padding: 10px 0; }
+.summary-tooltip .st-section {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--gold);
+  margin: 10px 0 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--gold);
+}
+.summary-tooltip .st-section:first-child { margin-top: 0; }
+.summary-tooltip .st-cat {
+  font-size: 9.5px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  margin: 6px 0 2px;
+  padding-left: 2px;
+  border-left: 2px solid var(--gold);
+}
+
+.slot-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.slot-card {
+  flex: 1;
+  min-width: 130px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.slot-card.filled { border-color: var(--gold); }
+.slot-title {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.slot-summary { font-size: 10.5px; color: var(--text-dim); line-height: 1.6; min-height: 32px; }
+.slot-summary .empty { color: var(--text-dim); opacity: .6; }
+.slot-btns { display: flex; gap: 6px; margin-top: 8px; }
+.slot-btn {
+  flex: 1;
+  font-size: 10px;
+  font-family: 'Cinzel', serif;
+  padding: 5px 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel2);
+  color: var(--text-dim);
+  cursor: pointer;
+  text-align: center;
+}
+.slot-btn:hover { color: var(--gold-bright); border-color: var(--gold); }
+.slot-btn.danger:hover { color: #ff9aa3; border-color: #ff7a86; }
+
+.compare-btn {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: 1px;
+  background: var(--panel2);
+  color: var(--gold-bright);
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.compare-btn:hover { background: var(--gold); color: var(--bg); }
+
+.compare-panel {
+  background: var(--panel);
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+}
+.compare-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 500px; }
+.compare-table th, .compare-table td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.compare-table th { font-family: 'Cinzel', serif; color: var(--gold); font-size: 10.5px; letter-spacing: .5px; }
+.compare-table td.names { white-space: normal; font-size: 11px; color: var(--text-dim); max-width: 220px; }
+
+.star-tooltip {
+  display: none;
+  position: fixed;
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: #0a0810;
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  padding: 10px 13px;
+  font-size: 11.5px;
+  line-height: 1.75;
+  color: var(--text);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.65);
+  z-index: 200;
+  white-space: pre-line;
+  pointer-events: none;
+  text-align: left;
+}
+.star-tooltip.show { display: block; }
+.star-tooltip .tt-title {
+  color: var(--gold-bright);
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  letter-spacing: .5px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+@media (max-width: 640px) {
+  .affinity-row { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .aff-card { padding: 8px 4px; }
+  .aff-val { font-size: 16px; }
+  h1 { font-size: 22px; letter-spacing: 1.5px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>祈祷の祠</h1>
+    <div class="subtitle">星座(デボーション)プランナー</div>
+  </header>
+
+  <div class="footer-note" style="margin-top:0; margin-bottom:20px;">
+    要親和性は「現在の合計付与親和性」が満たしていれば解禁されます(消費されません)。<br>
+    〇 = 目標として確定取得(要求親和性を満たせば完成、親和性付与あり) / × = 逆引き候補から除外 / △ = 途中まで取得(コストのみ加算、親和性は未付与)<br>
+    赤い枠は親和性不足で実際には解禁できていない星座です。全55ptが祈祷ポイントの上限。
+  </div>
+
+  <div class="sticky-top">
+    <div class="budget-bar">
+      <div class="budget-label">祈祷ポイント</div>
+      <div class="budget-track"><div class="budget-fill" id="budgetFill"></div></div>
+      <div class="budget-num" id="budgetNum">0 / 55</div>
+      <button class="quick-calc-btn" id="quickCalcBtn">目標を計算</button>
+      <div class="summary-btn-wrap">
+        <div class="summary-btn" id="summaryBtn">合計ボーナス ▾</div>
+        <div class="summary-tooltip" id="summaryTooltip"></div>
+      </div>
+      <button class="reset-btn" id="resetBtn">リセット</button>
+    </div>
+
+    <div class="affinity-row" id="affinityRow"></div>
+  </div>
+
+  <div class="slot-bar" id="slotBar"></div>
+  <div style="text-align:center;margin-bottom:20px;">
+    <button class="compare-btn" id="compareBtn">保存枠を比較</button>
+  </div>
+  <div class="compare-panel" id="comparePanel" style="display:none;"></div>
+
+  <div class="mode-tabs">
+    <div class="mode-tab" id="tabManual">手動で選ぶ</div>
+    <div class="mode-tab" id="tabTarget">目標から逆引き</div>
+  </div>
+
+  <div class="target-panel" id="targetPanel" style="display:none;">
+    <div class="target-panel-title">対象に指定した星座(〇確定取得 / △途中まで取得)</div>
+    <div class="target-chips" id="targetChips"></div>
+    <div class="deficit-row" id="deficitRow"></div>
+    <button class="solve-btn" id="solveBtn">最小コストの経路を計算</button>
+    <div class="suggest-result" id="suggestResult"></div>
+  </div>
+
+  <div class="crossroads" id="crossroadsRow"></div>
+
+  <div id="tiers"></div>
+</div>
+
+<div class="star-tooltip" id="sharedTooltip"><div class="tt-title">ボーナス合計(重複分)</div><div id="sharedTooltipBody"></div></div>
+
+<script>
+const AFF = ['asc','chaos','eld','ord','prim'];
+const AFF_LABEL = { asc:'アセンダント', chaos:'カオス', eld:'エルドリッチ', ord:'オーダー', prim:'原始' };
+const AFF_COLOR = { asc:'var(--c-asc)', chaos:'var(--c-chaos)', eld:'var(--c-eld)', ord:'var(--c-ord)', prim:'var(--c-prim)' };
+
+function z(){ return {asc:0,chaos:0,eld:0,ord:0,prim:0}; }
+
+// [名前, コスト, 要求{asc,chaos,eld,ord,prim}, 付与{asc,chaos,eld,ord,prim}]
+const TIER1 = [
+  ["Anvil 鉄床",5,{asc:1},{asc:5},"1: +15 防御能力 \n2: +20 体格 \n3: +45 装甲、装甲吸収率増加 3% \n4: 60 体内損傷/5s、+10 攻撃能力、+15 防御能力、+5% シールドブロック率 \n5: 星座スキル獲得\n\n【星座スキル】Targo's Hammer (ターゴのハンマー)\n発動: ブロック時 50% 【要/盾】"],
+  ["Empty Throne 空位の玉座",4,{asc:1},{asc:5},"1: +12 防御能力、10% 減速耐性 \n2: +20 防御能力、8% 刺突耐性、ペットボーナス(15% 刺突耐性) \n3a: 10% イーサー耐性、25% 凍結時間短縮、ペットボーナス(15% イーサー耐性、25% 凍結短縮) \n3b: 10% カオス耐性、25% 気絶時間短縮、ペットボーナス(15% カオス耐性、25% 気絶短縮)"],
+  ["Falcon 隼",5,{asc:1},{asc:3,eld:3},"1: +15% 物理ダメージ、+15% 出血ダメージ \n2: +60 ヘルス、+15 攻撃能力 \n3: +20 狡猾性 \n4: +24% 物理ダメージ、+50 出血ダメージ \n5: 星座スキル獲得\n\n【星座スキル】Falcon Swoop (ハヤブサの急襲)\n発動: 攻撃時 15%"],
+  ["Hammer ハンマー",3,{asc:1},{asc:4},"1: +15% 物理ダメージ、+20 装甲 \n2: +30% 体内損傷ダメージ (+30% 延長)、+15 防御能力 \n3: +24% 物理ダメージ、+60% 体内損傷ダメージ、装甲強化 8%"],
+  ["Harpy ハーピー",4,{asc:1},{asc:5},"1: +15% 刺突ダメージ、+15% 冷気ダメージ \n2: +15 狡猾性、+1 エナジー再生/s \n3a: +24 攻撃能力、10% 出血耐性、6-10 刺突ダメージ \n3b: +8% クリティカルダメージ、+24% 刺突ダメージ、+24% 冷気ダメージ"],
+  ["Owl 梟",4,{asc:1},{asc:5},"1: +15 狡猾性、+15 精神力 \n2: 8% エレメンタル耐性、-5% スキルエナジーコスト \n3a: 全持続ダメージ+50% (+50% 延長) \n3b: +30% 全ダメージ、+15 防御能力、+15% 反射ダメージ削減"],
+  ["Shepherd's Crook 羊飼いの杖",5,{asc:1},{asc:5},"1: +40 ヘルス、ペットボーナス(+8% ヘルス) \n2: +15 狡猾性、+40 ヘルス \n3: 10% エレメンタル耐性、ペットボーナス(15% エレメンタル耐性) \n4: +3% ヘルス、+5% 防御能力、ペットボーナス(+8% ヘルス) \n5: 星座スキル獲得\n\n【星座スキル】Shepherd's Call (シェパーズ コール)\n発動: 攻撃時 25%"],
+  ["Toad ヒキガエル",4,{asc:1},{asc:3,eld:3},"1: 8% 生命力耐性 \n2: +15 精神力、+10 攻撃能力、ペットボーナス(+25% 全ダメ、+3% 攻撃能力) \n3: 3% 攻撃ダメをヘルスに変換、+60 ヘルス、ペットボーナス(4% 変換、+25% 全ダメ) \n4: +6% ビースト特攻、+24% 生命力/イーサーダメージ、ペットボーナス(+3% 攻撃能力)"],
+  ["Wolverine クズリ",5,{asc:1},{asc:6},"1: +15 防御能力、ペットボーナス(10% 刺突耐性) \n2: +30 装甲、+30% 全報復ダメ、ペットボーナス(15% 生命力耐性) \n3: +25 防御能力、ペットボーナス(15% 毒酸耐性) \n4a: +3% 移動速度、+30 装甲、+50% 全報復ダメ、ペットボーナス(25% 出血耐性) \n4b: +4% 防御能力、近接武器要求値-10%、ペットボーナス(+5% 防御能力)"],
+  ["Nighttalon ナイトタロン",4,{asc:1},{asc:3,chaos:2},"1: +15 狡猾性、+8 ヘルス再生/s、ペットボーナス(+20% 全ダメ) \n2: 10% エレメンタル耐性、ペットボーナス(+30% 出血ダメ、15% エレ耐性) \n3a: 3% 物理耐性、+50% 出血ダメ、ペットボーナス(+50% 出血ダメ) \n3b: +20% 出血ダメ (+20% 延長)、ペットボーナス(+60% 全ダメ)"],
+  ["Fiend フィーンド",5,{chaos:1},{chaos:2,eld:3},"1: +15% 火炎ダメージ、+15% カオスダメージ \n2: +15 精神力、ペットボーナス(+30% 全ダメージ) \n3: 8% カオス耐性 \n4: +24% 火炎ダメージ、+24% カオスダメージ、ペットボーナス(+80% 火炎) \n5: 星座スキル獲得\n\n【星座スキル】Flame Torrent (炎の奔流)\n発動: 攻撃時 25%"],
+  ["Ghoul グール",5,{chaos:1},{chaos:3},"1: +15 体格、+8 防御能力 \n2: +3% ヘルス、+16 ヘルス再生/s \n3a: +15 体格、+15 精神力、+15 防御能力 \n3b: 5% 攻撃ダメをヘルスに変換、ヘルス再生増加 30% \n4b: 星座スキル獲得\n\n【星座スキル】Ghoulish Hunger (食屍鬼の飢え)\n発動: ヘルス 45%以下"],
+  ["Jackal ジャッカル",3,{chaos:1},{chaos:3},"1: エナジー再生増加 10%、ペットボーナス(+8% ヘルス) \n2: +12 攻撃能力、+6% 総合速度 \n3: +15% 全ダメージ、2% 物理耐性、ペットボーナス(+5% 攻撃速度)"],
+  ["Rat 鼠",4,{chaos:1},{chaos:2,eld:3},"1: +15 狡猾性、+15 精神力 \n2: 40 毒ダメージ/5s、+30% 毒ダメージ、20 酸報復 \n3: +20 狡猾性、+20 精神力、10% 毒酸耐性、30 酸報復 \n4: 60 毒ダメージ/5s、+60% 毒 (+30% 延長)、+40% 全報復ダメ"],
+  ["Viper 毒蛇",4,{chaos:1},{chaos:2,prim:3},"1: +15 狡猾性、+15 精神力 \n2: 15%の確率で 36 エナジー吸収/2s、+10% 敵呪文エナジー吸収 \n3: 10% 生命力耐性 \n4: 20% 標的のエレメンタル耐性減少 3秒、+3% 攻撃能力"],
+  ["Vulture 禿鷹",5,{chaos:1},{chaos:5},"1: +15 狡猾性、+15 精神力 \n2: +15 攻撃能力、30% ライフ吸収耐性、15% 出血耐性 \n3a: +5% 狡猾性、+5% 精神力、+15 攻撃能力 \n3b: +15 攻撃能力、15% 生命力耐性、8% カオス耐性 \n3c: +80 ヘルス、+200 エナジー、+15 攻撃能力"],
+  ["Wretch 哀れな者",4,{chaos:1},{chaos:2,prim:3},"1: +15% 酸ダメージ、+15% カオスダメージ \n2: +15 体格、12% 出血耐性 \n3: +140 ヘルス、+15 防御能力、44 酸報復 \n4: アンデッド/人間特攻、+24% 酸ダメージ、+24% カオスダメージ"],
+  ["Mantis 蟷螂",4,{chaos:1},{asc:3,chaos:2},"1: +15% 刺突ダメージ、+20 装甲 \n2: +10 防御能力、10% エレメンタル耐性 \n3: +80 ヘルス、+1 エナジー再生/s \n4: 7 刺突ダメージ、+24% 刺突ダメージ、3% 物理耐性"],
+  ["Akeron's Scorpion アケロンの蠍",5,{eld:1},{eld:5},"1: +12 攻撃能力 \n2: +15% 酸ダメージ、+30% 毒ダメージ、+15 体格 \n3: +18 攻撃能力、+24% 酸ダメージ \n4a: +50% 毒ダメージ (+30% 延長) \n4b: 星座スキル獲得\n\n【星座スキル】Scorpion Sting (スコーピオン スティング)\n発動: 攻撃時 25%"],
+  ["Bat 蝙蝠",5,{eld:1},{chaos:2,eld:3},"1: +15% 生命力ダメージ、+15% 出血ダメージ \n2: +30% 生命力減衰、+15 攻撃能力 \n3: +24% 生命力ダメージ、+50% 出血ダメージ \n4: 6 生命力ダメージ、3% 攻撃ダメをヘルスに変換、+10 防御能力 \n5: 星座スキル獲得\n\n【星座スキル】Twin Fangs (ツイン ファング)\n発動: 攻撃時 20%"],
+  ["Eye of the Guardian 守護者の目",5,{eld:1},{asc:3,eld:3},"1: +15% 酸ダメージ、+15% 毒ダメージ \n2: +16 攻撃能力、+16 防御能力 \n3: +20% カオスダメージ、+15% 毒ダメージ \n4: +30% 毒ダメージ、+1 エナジー再生/s、8% 生命力耐性 \n5: 星座スキル獲得\n\n【星座スキル】Guardian's Gaze (守護者の凝視)\n発動: 攻撃時 15%"],
+  ["Fox 狐",4,{eld:1},{eld:5},"1: +15 狡猾性、+15 精神力 \n2: 24 出血ダメージ/3s、+30% 出血ダメージ \n3: +25 狡猾性、8% 出血耐性 \n4: 36 出血/3s、+60% 出血、6% 変換、+10 ヘルス再生/s"],
+  ["Hawk 鷹",3,{eld:1},{eld:3},"1: +15 攻撃能力 \n2: +8% クリティカルダメ、ペットボーナス(+8% クリティカル) \n3: +3% 攻撃能力、遠隔狡猾要求-10%、ペットボーナス(+3% 攻撃能力)"],
+  ["Quill 羽根ペン",4,{eld:1},{asc:3,eld:3},"1: +15% エレメンタルダメージ \n2: 8% イーサー耐性 \n3: +100 ヘルス、+150 エナジー \n4: +24% エレメンタルダメージ、+2% 防御能力、エナジー再生増加 10%"],
+  ["Raven レイヴン",4,{eld:1},{eld:5},"1: +15 精神力、ペットボーナス(+15% 全ダメージ) \n2: +10 攻撃能力、+1.5 エナジー再生/s \n3a: +3% 攻撃能力、ペットボーナス(+60% 全ダメ、+5% 攻撃能力) \n3b: +15 攻撃能力、ペットボーナス(+80% 雷ダメージ)"],
+  ["Scholar's Light 学者の明かり",3,{eld:1},{eld:4},"1: +15% エレメンタルダメージ \n2: +15 体格、+15 防御能力、8% エレメンタル耐性 \n3: +24% エレメンタルダメージ、+2.5 エナジー再生/s、8% イーサー耐性"],
+  ["Spider 蜘蛛",5,{eld:1},{eld:6},"1: +15 狡猾性、+15 精神力 \n2a: +3% 精神力、+20 攻撃能力 \n2b: +20 攻撃能力、+5% 詠唱速度 \n2c: +20 防御能力、+5% 攻撃速度 \n2d: +3% 狡猾性、+20 防御能力"],
+  ["Assassin's Blade アサシンの刃",5,{ord:1},{asc:3,ord:2},"1: +15% 物理ダメージ、+15% 刺突ダメージ \n2a: +12 防御能力 \n2b: +24% 物理ダメージ、+24% 刺突ダメージ \n3b: +18 攻撃能力 \n4b: 星座スキル獲得\n\n【星座スキル】Assassin's Mark (アサシンのマーク)\n発動: クリティカル攻撃時 100%"],
+  ["Crane 鶴",5,{ord:1},{ord:5},"1: +15 体格、+15 精神力 \n2: 12% 毒酸耐性、ペットボーナス(20% 毒酸耐性) \n3: +15% 全ダメージ、武器精神要求-10% \n4: 12% 生命力耐性、ペットボーナス(20% 生命力耐性) \n5:  16% エレメンタル/出血耐性、+22% 反射ダメージ削減"],
+  ["Dryad ドライアド",5,{ord:1},{ord:3},"1: +15 体格、+200 エナジー、10% 毒酸耐性 \n2: +80 ヘルス、+1 エナジー再生/s \n3: +3% 移動速度、15% 減速耐性 \n4: +5% 精神力、武器/装飾品精神要求-10%、3% 物理耐性 \n5: 星座スキル獲得\n\n【星座スキル】Dryad's Blessing (ドライアドの祝福)\n発動: 攻撃時 33%"],
+  ["Lion 獅子",3,{ord:1},{ord:3},"1: +4% ヘルス、+8 防御能力、ペットボーナス(+8% ヘルス) \n2: +15 精神力、+30 装甲、+6% 移動速度 \n3: +15% 全ダメージ、2% 物理耐性、ペットボーナス(+20% 全ダメージ)"],
+  ["Panther 豹",4,{ord:1},{ord:2,prim:3},"1: +12 攻撃能力、ペットボーナス(+2% 攻撃能力) \n2: +15 狡猾性、+15 精神力、ペットボーナス(+20% 全ダメージ) \n3: +20 攻撃能力、エナジー再生増加 15%、ペットボーナス(+3% 攻撃能力) \n4: +6% クリティカルダメ、+25 攻撃能力、ペットボーナス(+30% 全ダメ、+8% クリティカル)"],
+  ["Stag 牡鹿",4,{ord:1},{ord:2,prim:3},"1: +15% 物理ダメージ、+15% 出血ダメージ、ペットボーナス(+20% 全ダメ) \n2: +15 体格、10%/15% 刺突耐性、+5% 移動速度、ペットボーナス(+60% 全ダメ) \n3: +110 ヘルス、+15 防御能力、+30% 全報復ダメ、ペットボーナス(+30% 物理、+3% 防御) \n4: +24% 物理ダメ、+50% 出血ダメ、装甲強化 10%、ペットボーナス(+50% 物理)"],
+  ["Tortoise 亀",5,{ord:1},{ord:2,prim:3},"1: +12 防御能力、+20 装甲 \n2: +15 防御能力、盾体格要求-10%、+20 装甲 \n3: +15 防御能力、+40 装甲 \n4a: +4% ヘルス、+10 防御能力、装甲強化 8% \n4b: 星座スキル獲得\n\n【星座スキル】Turtle Shell (亀甲)\n発動: ヘルス 50%以下"],
+  ["Lotus 蓮",4,{ord:1},{eld:3,ord:2},"1: +30 ヘルス、+100 エナジー \n2a: +1 エナジー再生/s、エナジー再生量増加 15% \n2b: +80 ヘルス、+4% エナジー、8% 生命力耐性 \n2c: ヘルス再生増加 20%、20% 治癒向上、25% 反射ダメージ削減"],
+  ["Bull 雄牛",5,{prim:1},{ord:2,prim:3},"1: +15 体格、+8 防御能力 \n2: +30% 体内損傷ダメージ (+30% 延長)、+3% 移動速度 \n3: +15 体格、+30 装甲 \n4a: 60 体内損傷/5s、+50% 体内損傷、+10 防御能力、防具体格要求-10% \n4b: 星座スキル獲得\n\n【星座スキル】Bull Rush (ブル ラッシュ)\n発動: 攻撃時 25%"],
+  ["Eel 鰻",3,{prim:1},{prim:5},"1: +12 防御能力、2% 近接攻撃回避率 \n2: +15 防御能力、2% 投射物回避率 \n3: +20 防御能力、+6% 移動速度、10% 刺突耐性"],
+  ["Gallows 絞首台",4,{prim:1},{prim:5},"1: +15% 生命力ダメージ、+15% カオスダメージ \n2: +3% ヘルス、10% 出血耐性 \n3: +3% ヘルス、10% 生命力耐性 \n4: 8 生命力ダメージ、+24% 生命力/カオス、アンデッド/人間特攻"],
+  ["Hound 猟犬",3,{prim:1},{prim:4},"1: +15 体格、ペットボーナス(+8% ヘルス) \n2: 装甲強化 6%、+30% 全報復ダメージ \n3: +20 体格、装甲強化 9%、+40% 全報復、ペットボーナス(+12% ヘルス、15% 気絶短縮)"],
+  ["Imp インプ",5,{prim:1},{eld:3,prim:3},"1: +15% 火炎ダメージ、+15% イーサーダメージ \n2: +15 精神力、+10 防御能力 \n3: +15 体格、8% イーサー耐性 \n4: +24% 火炎ダメージ、+24% イーサーダメージ \n5: 星座スキル獲得\n\n【星座スキル】Aetherfire (イーサーファイア)\n発動: 攻撃時 15%"],
+  ["Lizard 蜥蜴",3,{prim:1},{prim:4},"1: +8 ヘルス再生/s、15% 活力 \n2: +50 ヘルス、+16 ヘルス再生/s、+3% 移動速度 \n3: +50 ヘルス、ヘルス再生増加 40%、6% 治癒向上"],
+  ["Sailor's Guide 船乗りの指針",4,{prim:1},{prim:5},"1: +15 体格、+8 防御能力 \n2: 18% 凍結短縮、18% 減速耐性 \n3a: +15 体格、+10% 移動速度 \n3b: 3% 物理耐性、15% エレメンタル耐性"],
+  ["Tsunami 津波",5,{prim:1},{prim:5},"1: +15% 冷気ダメージ、+15% 雷ダメージ \n2: +15 精神力、+20 防御能力 \n3: +50% 凍傷/感電ダメージ、+15 体格 \n4: +24% 冷気ダメージ、+24% 雷ダメージ \n5: 星座スキル獲得\n\n【星座スキル】Tsunami (津波)\n発動: 攻撃時 35%"],
+  ["Wraith 死霊",4,{prim:1},{asc:3,prim:3},"1: +15% 雷ダメージ、+15% イーサーダメージ \n2a: +24 攻撃能力、15% 敵呪文エナジー吸収、25-85 雷報復 \n2b: +15 精神力、8% イーサー耐性、+30% 全報復ダメージ \n2c: +24% 雷/イーサー、アンデッド特攻、+3% 物理耐性"],
+  ["Scarab スカラベ",4,{prim:1},{ord:2,prim:3},"1: +15 体格、+20 装甲 \n2: -5% シールド回復時間、+16% シールドダメージブロック \n3a: 15% 出血耐性、装甲強化 8% \n3b: -10% シールド回復、15% 気絶短縮、+16% ブロック量、40 酸報復"],
+];
+
+const TIER2 = [
+  ["Affliction 難儀",7,{asc:4,chaos:3,eld:4},{asc:1,eld:1},"1: +40% 毒ダメージ、+40% 生命力減衰 \n2: +20 精神力、+20 攻撃能力、+20 防御能力、60 酸報復 \n3: 星座スキル獲得 \n4a: +50% 毒ダメージ、+4% 攻撃能力、+60% 全報復ダメ \n5a: 45 生命力減衰/3s、+60% 生命力減衰 (+50% 延長)、+40 攻撃能力、90 酸報復 \n4b: +50% 毒ダメージ、+4% 防御能力、+60% 全報復ダメ \n5b: 45 生命力減衰/3s、+60% 生命力減衰 (+50% 延長)、+40 防御能力、90 酸報復\n\n【星座スキル】Fetid Pool (悪臭の水たまり)\n発動: 被打時 33%"],
+  ["Alladrah's Phoenix アラドラーの不死鳥",5,{eld:6,ord:3,prim:6},{asc:2,eld:2},"1: +40% イーサーダメージ、+40% エレメンタルダメージ \n2: +250 ヘルス、12% カオス耐性 \n3: +30% イーサー/エレメンタル、15% 凍結短縮、200 火炎報復 \n4: +10% クリティカルダメ、+50% 火炎/燃焼 (+30% 延長)、+80% 全報復 \n5: 星座スキル獲得\n\n【星座スキル】Phoenix Fire (フェニックス ファイア)\n発動: クリティカル攻撃時 100%"],
+  ["Amatok the Spirit of Winter 冬の精霊 アマトク",7,{eld:4,prim:6},{eld:1,prim:1},"1: +40% 冷気ダメージ \n2: +6% ヘルス、+15 防御能力 \n3a: +50% 冷気/凍傷、+60 装甲 \n4a: 36 凍傷/3s、+50% 冷気、+100% 凍傷 \n3b: +30 防御能力、+80 装甲 \n3c: +50% 凍傷 (+50% 延長)、+25 攻撃能力 \n4c: 星座スキル獲得\n\n【星座スキル】Blizzard (ブリザード)\n発動: クリティカル攻撃時 100%"],
+  ["Assassin アサシン",7,{asc:6,ord:4},{asc:1,ord:1},"1: +40% 刺突ダメージ \n2: +20 狡猾性、+60 装甲 \n3a: +18 攻撃能力、+10 防御能力、4% 近接攻撃回避率 \n3b: +50% 刺突ダメージ、+5% 狡猾性、10% 出血耐性 \n4ba: 人間特攻、+25 防御能力、10% 毒酸耐性 \n4bb: 12 刺突ダメ、+50% 刺突ダメ \n5bb: 星座スキル獲得\n\n【星座スキル】Blades of Wrath (憤怒の刃)\n発動: クリティカル攻撃時 100%"],
+  ["Autumn Boar 秋猪",7,{asc:4,ord:3,prim:4},{asc:3},"1: +20 体格、+20 狡猾性、+30% 全報復ダメージ \n2: +15 体格、15% 刺突耐性、15% 減速耐性 \n3: +5% 体格、+30% 全報復ダメージ \n4a: +5% 移動速度、+25 防御能力、+5% シールドブロック率 \n4b: +30 防御能力、+60% 全報復ダメージ \n5ba: -10% シールド回復、4% 物理耐性、+15% 反射削減、150 物理報復 \n5bb: 星座スキル獲得\n\n【星座スキル】Trample (トランプル)\n発動: ブロック時 50% 【要/盾】"],
+  ["Bard's Harp 吟遊詩人のハープ",6,{asc:6,ord:3,prim:6},{ord:2,prim:2},"1: +200 ヘルス、+15 防御能力 \n2: +40% 刺突/エレメンタルダメ、エナジー再生量増加 25% \n3: +300 ヘルス、15% 刺突耐性、10% 出血耐性 \n4: +30 防御能力、+3 エナジー再生/s、+6% 総合速度 \n5: +50% 刺突/エレメンタル、燃焼/凍傷/感電+80%、15% エレ耐性 \n6: 星座スキル獲得\n\n【星座スキル】Inspiration (インスピレーション)\n発動: 被打時 30%"],
+  ["Behemoth ビヒモス",6,{chaos:3,eld:4,prim:4},{chaos:2,eld:3},"1: +30 ヘルス再生/s \n2: +300 ヘルス、ペットボーナス(+12% ヘルス) \n3a: 星座スキル獲得 \n3b: ヘルス再生量増加 80%、ペットボーナス(再生増加 100%) \n3c: +8% ヘルス、+80 装甲、ペットボーナス(+100 装甲) \n3d: +70 ヘルス再生/s、6% 治癒向上\n\n【星座スキル】Giant's Blood (巨人の血)\n発動: 被打時 15%"],
+  ["Berserker バーサーカー",6,{asc:5,eld:5},{chaos:2,eld:3},"※要求：斧/槍 \n1: +300 ヘルス、+20 攻撃能力 \n2a: +50% 物理ダメ、+50% 出血ダメ、15% 凍結短縮 \n3a: +60 攻撃能力、+5% クリティカルダメージ \n2b: +25 ヘルス再生/s、15% 治癒向上、4% 物理耐性、15% 刺突耐性 \n2c: +50% 物理ダメ、+50% 出血ダメ、15% 気絶短縮 \n3c: 60 出血/s、+50% 出血ダメ (+50% 延長)"],
+  ["Blades of Nadaan ナダーンの刃",6,{asc:10},{asc:3,ord:2},"※要求：剣 \n1: 2% 近接回避、2% 投射回避 \n2: +40% 刺突ダメージ \n3a: +50% 刺突ダメージ \n3b: +15 防御能力、+4% 攻撃速度 \n3c: +15 防御能力、+4% 攻撃速度 \n3d: 16 刺突ダメージ、+50% 刺突ダメージ"],
+  ["Bysmiel's Bonds ビスミールの枷",5,{chaos:4,eld:6},{eld:3},"1: +15 攻撃能力、ペットボーナス(+30% 全ダメージ) \n2: +15 体格、+5% 詠唱速度、ペットボーナス(+50% 全ダメージ) \n3: 15% 生命力耐性、ペットボーナス(20% 生命力耐性) \n4: +30% 全ダメ、20% 捕縛短縮、ペットボーナス(+50% 全ダメ、20% 捕縛短縮) \n5: 星座スキル獲得\n\n【星座スキル】Bysmiel's Command (ビスミールのコマンド)\n発動: 攻撃時 20%"],
+  ["Chariot of the Dead 死者のチャリオット",7,{asc:5,eld:5},{chaos:2,eld:3},"1: +20 体格、+20 狡猾性 \n2: +15 攻撃能力、10% 減速耐性 \n3: +25 狡猾性、+60 装甲 \n4a: 16% 生命力耐性、20% 気絶時間短縮 \n4b: +25 攻撃能力、15% 減速耐性 \n5b: +15 攻撃能力、+4% 攻撃能力 \n6b: 星座スキル獲得\n\n【星座スキル】Wayward Soul (強情な魂)\n発動: 被打時 20%"],
+  ["Crab 蟹",5,{asc:6,ord:4},{asc:3},"1: +25 体格、+15% 活力 \n2: +50% 物理/エレメンタル/体内損傷ダメージ \n3: 星座スキル獲得 \n4: +40 攻撃能力、+40 防御能力、18% 刺突耐性 \n5: 15 エレダメ、+60% エレダメ、燃焼/凍傷/感電+100%、15% エレ耐性\n\n【星座スキル】Arcane Barrier (アルケイン バリア)\n発動: 被打時 15%"],
+  ["Dire Bear ダイア ベア",6,{asc:5,prim:5},{asc:1,prim:1},"1: +40% 物理ダメージ \n2: +20 体格、+20 狡猾性、+15 防御能力 \n3: +50% 物理ダメージ、+60 装甲 \n4: +6% ヘルス、15% 気絶短縮、15% 凍結短縮 \n5a: 4% 攻撃ダメをヘルスに変換、+80 装甲 \n5b: 星座スキル獲得\n\n【星座スキル】Maul (モール)\n発動: 攻撃時 20%"],
+  ["Harvestman's Scythe 刈り入れ人の大鎌",6,{asc:3,ord:3,prim:5},{asc:3,prim:3},"1: +3% 移動速度、+2 エナジー再生/s \n2: +3% 移動速度、+200 ヘルス、+200 エナジー \n3: +4% 体格、10% 治癒向上 \n4: +4% 狡猾性、+4% 精神力 \n5: +4% 防御能力、ヘルス再生増加 60%、エナジー再生増加 30% \n6: +8% ヘルス/エナジー、+50 ヘルス再生/s、+3 エナジー再生/s"],
+  ["Huntress 女狩人",7,{asc:4,chaos:3,eld:4},{asc:1,eld:1},"1: +200 ヘルス、+15 攻撃能力 \n2: +50% 刺突ダメージ、+20 狡猾性 \n3: +60% 出血ダメージ、+25 攻撃能力 \n4a: ビースト特攻、+60 装甲、8% 刺突耐性、ペットボーナス(+40% 全ダメ、+12% ヘルス) \n4b: +3% 攻撃能力、+25 ヘルス再生/s、12% 治癒向上、ペットボーナス(+5% 攻撃能力) \n5ba: 45 出血/3s、+50% 出血 (+20% 延長)、ペットボーナス(+80% 出血) \n5bb: 星座スキル獲得\n\n【星座スキル】Rend (引き裂き)\n発動: 攻撃時 20%"],
+  ["Hydra ヒドラ",6,{asc:3,chaos:3,eld:5},{chaos:2,eld:3},"※要求：遠隔武器 \n1: +25 攻撃能力 \n2: +35 攻撃能力、+10% 移動速度 \n3a: +50% 全ダメ、+5% 攻撃/詠唱速度、+5% 最大移動速度 \n3b: 5% 攻撃ダメをヘルスに変換、+5% 攻撃/詠唱速度、+5% 最大移動速度 \n3c: 6 物理ダメージ、+25 攻撃能力 \n4c: 12 物理ダメージ、+4% 攻撃能力、20% 減速耐性"],
+  ["Kraken クラーケン",5,{eld:5,prim:5},{chaos:2,prim:3},"※要求：両手武器 \n1: +50% 全ダメージ、+100% 全報復ダメージ \n2a: +250 ヘルス、+13% 攻撃速度、+5% 詠唱速度 \n2b: +250 ヘルス、+13% 攻撃速度、+5% 詠唱速度 \n2c: +70% 全ダメージ、+5% 移動速度、+140% 全報復ダメ \n2d: +15% クリティカルダメージ、4% 物理耐性"],
+  ["Magi マギ",7,{eld:10},{eld:3},"1: +40% 火炎ダメージ \n2: +15 防御能力、8% エレ耐性 \n3: +20 防御能力、+1.5 エナジー再生/s、15% 捕縛短縮 \n4a: +50% 燃焼ダメ、+15 体格、+5% 攻撃/詠唱速度 \n4b: 11-14 火炎ダメ、+40% 火炎ダメ、15% 凍結時間短縮 \n4c: 36 燃焼/3s、+50% 燃焼 (+30% 延長) \n5c: 星座スキル獲得\n\n【星座スキル】Fissure (亀裂)\n発動: 攻撃時 15%"],
+  ["Manticore マンティコア",6,{chaos:4,eld:6},{asc:1,eld:1},"1: +250 ヘルス、+15 攻撃能力 \n2: +50% 酸/毒ダメ、ペットボーナス(+60% 酸/毒ダメ) \n3: +6% ヘルス、ペットボーナス(+12% ヘルス) \n4a: +20 攻撃能力、4% 物理耐性、10% 毒酸耐性、ペットボーナス(+40% 全ダメ、+4% 攻撃能力) \n4b: 40 毒/5s、+40% 酸/毒 (+30% 延長)、ペットボーナス(+60% 酸/毒ダメ) \n5b: 星座スキル獲得\n\n【星座スキル】Acid Spray (アシッド スプレー)\n発動: 攻撃時 15%"],
+  ["Messenger of War 戦争の使者",6,{asc:3,prim:7},{chaos:2,prim:3},"1: 90 火炎報復、+30% 全報復ダメ \n2: +20 体格、+20 攻撃能力、+5% 移動速度 \n3a: +25 攻撃能力、+60% 全報復ダメ \n4a: 装甲強化 12%、120 火炎報復 \n3b: 15% エレ耐性、120 火炎報復 \n4b: 星座スキル獲得\n\n【星座スキル】Messenger of War (戦争の使者)\n発動: 近接攻撃被打時 20%"],
+  ["Murmur, Mistress of Rumors 噂の女王 マーマー",6,{chaos:3,eld:6,prim:6},{chaos:2,eld:2},"1: +40% 冷気/酸ダメ \n2: 3% 近接回避、3% 投射回避 \n3: +200 ヘルス、+20 防御能力 \n4: 星座スキル獲得 \n5a: +20 防御能力、15% 生命力耐性 \n5b: +50% 冷気/酸ダメ、+80% 凍傷ダメ\n\n【星座スキル】Rumor (噂)\n発動: 攻撃時 15%"],
+  ["Oklaine's Lantern オクレインのランタン",5,{eld:10},{eld:3,ord:2},"※要求：セプター/ダガー/オフハンド \n1: エナジー再生増加 15% \n2: +25 攻撃能力、+20 防御能力 \n3: +5% クリティカルダメ、+15 攻撃能力 \n4: +50% 全ダメ、25% 捕縛短縮 \n5: +2 エナジー再生/s、+5% 攻撃/詠唱速度"],
+  ["Revenant レヴナント",6,{chaos:8},{chaos:1,prim:1},"1: エナジー吸収、+15% 敵呪文エナジー吸収 \n2: 10% アンデッドダメ減少、+6% ヘルス \n3: 24% 生命力耐性、20% 気絶短縮 \n4: 6% 攻撃ダメをヘルスに変換、+60% 生命力ダメ、+250 ヘルス \n5: +60% イーサーダメ、+4% 攻撃/詠唱速度 \n6: 星座スキル獲得\n\n【星座スキル】Raise the Dead (レイズ ザ デッド)\n発動: 攻撃時 20%"],
+  ["Rhowan's Crown ローワンの王冠",5,{asc:4,eld:6},{asc:1,eld:1},"1: 6-9 エレダメ、+30% エレダメ \n2: +20 精神力、+20 防御能力、ペットボーナス(+60% エレダメ) \n3: 星座スキル獲得 \n4: +20 攻撃能力、18% エレ耐性、ペットボーナス(18% エレ耐性) \n5: +40% エレダメ、燃焼/凍傷/感電+60%、8% カオス耐性\n\n【星座スキル】Elemental Storm (エレメンタル ストーム)\n発動: 攻撃時 25%"],
+  ["Rhowan's Scepter ローワンの王笏",6,{asc:6,ord:4},{asc:3,ord:2},"※要求：メイス \n1: +20 防御能力、+30 装甲 \n2: +6% ヘルス、+80 装甲 \n3a: +50% 物理ダメ、25% 石化短縮 \n4a: 10 物理ダメ、+50% 物理、装甲強化 8%、+60% 全報復ダメ \n3b: +50% 体内損傷ダメ、+50 防御能力 \n4b: 100 体内損傷/5s、+80% 体内損傷 (+50% 延長)、+60% 全報復ダメ"],
+  ["Scales of Ulcama ウルカマの天秤",6,{ord:8},{ord:2},"1: +250 ヘルス、+300 エナジー \n2: +6% ヘルス、+6% 移動速度 \n3a: +2.5 エナジー再生/s、エナジー再生量増加 33% \n4a: 5% 攻撃ダメをヘルスに変換、+30 ヘルス再生/s、ヘルス再生増加 33% \n3b: +20 体格、+45 防御能力 \n4b: 星座スキル獲得\n\n【星座スキル】Tip the Scales (形勢一変)\n発動: 被打時 33%"],
+  ["Shieldmaiden 盾の乙女",6,{ord:4,prim:6},{ord:2,prim:3},"※要求：盾 \n1: +20 防御能力、+30% シールドダメブロック \n2: +50% 体内損傷ダメ、+60% 全報復ダメ \n3a: +50 防御能力、+5% シールドブロック率 \n4a: 100 体内損傷/5s、+6% シールドブロック率、200 物理報復 \n3b: 25% 気絶短縮、+50% シールドダメブロック \n4b: -30% シールド回復、+80% シールドダメブロック"],
+  ["Solael's Witchblade ソレイルの魔剣",5,{chaos:4,eld:6},{chaos:1,eld:1},"1: +40% カオスダメージ \n2: +15 体格/精神力、+10 攻撃能力 \n3: +30% 火炎/カオス、+15 防御能力 \n4: +50% 火炎/カオス、+25 防御能力 \n5: 星座スキル獲得\n\n【星座スキル】Eldritch Fire (エルドリッチ ファイア)\n発動: 攻撃時 15%"],
+  ["Solemn Watcher 真面目な見張り",5,{prim:10},{ord:2,prim:3},"1: +25 体格 \n2: 18% カオス耐性、+40 装甲 \n3: 18% 刺突耐性、+40 装甲 \n4: +3% 体格、+30 防御能力 \n5: +5% 防御能力、+20% 反射ダメージ削減"],
+  ["Staff of Rattosh ラトッシュの杖",6,{chaos:3,ord:3,prim:6},{chaos:2,prim:3},"1: +20 防御能力、ペットボーナス(+3% 防御能力) \n2: 15% イーサー耐性、ペットボーナス(20% イーサー耐性) \n3a: +250 ヘルス、ペットボーナス(+50% 全ダメ、+70% イーサー) \n4a: +5% ヘルス、10% 生命力耐性、ペットボーナス(20% 生命力耐性) \n3b: +50% 全ダメージ、ペットボーナス(+50% 全ダメ、+70% イーサー) \n4b: +4% 攻撃能力、ペットボーナス(+3% 攻撃能力、+8% 総合速度)"],
+  ["Targo the Builder 建築神 ターゴ",7,{ord:4,prim:6},{ord:1},"1: +20 防御能力、+30% 全報復ダメ \n2: +6% ヘルス、8% イーサー耐性 \n3a: 装甲強化 8%、150 物理報復 \n3b: +6% ヘルス、8% カオス耐性 \n4ba: +300 ヘルス、+35 防御能力、+90% 全報復ダメ \n4bb: 装甲強化 12%、+24% シールドダメブロック \n5bb: 星座スキル獲得\n\n【星座スキル】Shield Wall (シールド ウォール)\n発動: 攻撃時 25%"],
+  ["Tempest テンペスト",7,{asc:5,prim:5},{eld:1,prim:1},"1: +40% 雷ダメージ \n2: 8-20 雷ダメージ、+20 体格 \n3: +50% 雷ダメ、+50% 感電ダメ \n4: +25 攻撃/防御能力、10% 減速耐性 \n5a: 30%確率で +250% 雷ダメ、+4% 総合速度、15% 気絶短縮 \n5b: +50% 感電ダメ (+50% 延長)、+20 攻撃能力 \n6b: 星座スキル獲得\n\n【星座スキル】Reckless Tempest (レックレス テンペスト)\n発動: クリティカル攻撃時 100%"],
+  ["Typhos, the Jailor of Souls 魂たちの看守 テュポス",6,{asc:6,chaos:3,ord:3},{asc:3,ord:2},"1: +20 攻撃能力、ペットボーナス(+3% 攻撃能力) \n2: +20 防御能力、ペットボーナス(+3% 防御能力) \n3: 15% 毒酸/出血耐性、ペットボーナス(15% 毒酸/出血耐性) \n4a: +4% 総合速度、ペットボーナス(6% 物理耐性、50% CC短縮) \n4b: +6% ヘルス、+20 攻撃能力、ペットボーナス(+40% 全ダメ、+3% 攻撃能力) \n5b: +10% クリティカルダメ、ペットボーナス(+40% 全ダメ、+12% クリティカル)"],
+  ["Ulo the Keeper of the Waters 水の番人 ウロ",5,{ord:4,prim:6},{ord:2,prim:3},"1: 15% エレ耐性、ペットボーナス(15% エレ耐性) \n2: +300 ヘルス/エナジー、30% ライフ/エナジー吸収耐性 \n3a: 各種妨害耐性 15% (気絶/凍結/石化/捕縛)、ペットボーナス(同耐性 15%) \n3b: 20% 毒酸/カオス耐性、ペットボーナス(20% 毒酸/カオス耐性) \n3c: 星座スキル獲得\n\n【星座スキル】Cleansing Waters (浄化の水)\n発動: 攻撃時 100%"],
+  ["Wendigo ウェンディゴ",6,{chaos:4,prim:6},{chaos:2},"1: +40% 生命力ダメ、+40% 生命力減衰 \n2: +20 精神力、+300 ヘルス \n3: +40% 生命力減衰、+40 防御能力、+5% 総合速度 \n4: 10% ビーストダメ減少、+6% ヘルス \n5: 36 生命力減衰/3s、+50% 生命力ダメ、+50% 生命力減衰 \n6: 星座スキル獲得\n\n【星座スキル】Wendigo's Mark (ウェンディゴのマーク)\n発動: 攻撃時 15%"],
+  ["Widow 未亡人",6,{eld:6,prim:4},{prim:3},"1: +40% イーサーダメージ \n2: +5% エナジー、+18 攻撃能力、+10 防御能力 \n3: +30% イーサーダメ、+15 体格/精神力 \n4: 8% 生命力耐性、18% イーサー耐性 \n5: +50% 雷/イーサーダメ、+2% 攻撃能力 \n6: 星座スキル獲得\n\n【星座スキル】Arcane Bomb (アルケイン ボム)\n発動: 攻撃時 25%"],
+  ["Hyrian, Guardian of the Celestial Gates 天門の守護者 ハイリアン",6,{asc:6,eld:8},{asc:2,prim:2},"1: +40% エレダメ、+40% 全報復ダメ \n2: +300 ヘルス、10% 刺突耐性、+30% シールドダメブロック \n3: +300 ヘルス、10% 治癒向上、装甲強化 9% \n4a: +50% エレダメ、燃焼/凍傷/感電+80%、15% エレ耐性、装甲強化 9% \n4b: 16 エレダメ、+40% シールドダメブロック、+80% 全報復ダメ \n5a: 星座スキル獲得\n\n【星座スキル】Hyrian's Glare (ハイリアンの輝光)\n発動: 被打時 30%"],
+  ["Ulzaad, Herald of Korvaak コルヴァークの伝令 ウルザード",6,{asc:8,prim:6},{asc:2,eld:2},"1: +40% 物理ダメージ \n2: +25 防御能力、15% 毒酸耐性 \n3a: +250 ヘルス、+1% 防御能力、10% カオス耐性 \n3b: +250 ヘルス、+1% 防御能力、10% イーサー耐性 \n3c: 9-12 物理ダメ、+50% 物理ダメ、+50% 体内損傷ダメ \n4c: 星座スキル獲得\n\n【星座スキル】Ulzaad's Decree (ウルザードの布告)\n発動: 攻撃時 20%"],
+];
+
+const TIER3 = [
+  ["Abomination 忌まわしきもの",8,{chaos:8,eld:18},{},"1: +80% カオスダメ、+80% 毒ダメ \n2: +80% 酸/生命力ダメ、+80% 生命力減衰 \n3: +40 攻撃能力、20% 毒酸耐性、+3% 最大毒酸耐性 \n4a: +80% 毒ダメ、+80% 生命力減衰、+400 ヘルス、+40 攻撃能力 \n5a: 12 酸ダメ、+100% 酸ダメ、+100% 毒ダメ \n6a: 星座スキル獲得 (Tainted Eruption) \n4b: +80% 生命力ダメージ、+80% カオスダメージ、+400 ヘルス、+40 攻撃能力 \n5b: 星座スキル獲得 (Abominable Might)\n\n【星座スキル】Tainted Eruption / Abominable Might\n発動: 攻撃時 15% / 攻撃時 20%"],
+  ["Aeon's Hourglass イオンの砂時計",6,{chaos:8,prim:18},{},"1: +40 体格/狡猾性/精神力 \n2: 各種持続時間 25% 短縮 \n3: 30% 捕縛短縮、50% 減速耐性、+25% 反射削減 \n4: 15% 生命力耐性、20% イーサー耐性、+4% 最大生命力耐性 \n5: +70 防御能力、6% 近接/投射回避 \n6: 星座スキル獲得\n\n【星座スキル】Time Dilation (時間拡張)\n発動: 攻撃時 100%"],
+  ["Attak Seru, the Mirage 蜃気楼のアターク セル",6,{asc:16,eld:14},{},"1: +80% イーサーダメ、+25 防御能力 \n2: +80% エレダメ、+25 防御能力 \n3: +300 ヘルス、25% 刺突/出血耐性 \n4: +4% 攻撃能力、+6% 防御能力、+100 装甲 \n5a: 16 エレダメ、+100% イーサー/エレダメ \n5b: 星座スキル獲得\n\n【星座スキル】Arcane Currents (アルケイン カレンツ)\n発動: 攻撃時 25%"],
+  ["Blind Sage 盲目の賢人",7,{asc:10,eld:18},{},"1: +30 体格/精神力、+25 攻撃能力 \n2: +80% エレダメ、+40 防御能力、15% エレ耐性 \n3: +12% クリティカルダメ、4% 物理耐性、30% スキル妨害耐性 \n4a: +100% 冷気ダメ、+250% 凍傷 (+25% 延長)、+45 攻撃能力 \n4b: +100% 雷ダメ、+250% 感電 (+25% 延長)、+45 攻撃能力 \n4c: +100% 火炎ダメ、+250% 燃焼 (+25% 延長)、+45 攻撃能力 \n5c: 星座スキル獲得\n\n【星座スキル】Elemental Seeker (エレメンタル シーカー)\n発動: 攻撃時 100%"],
+  ["Dying God 瀕死の神",7,{chaos:8,prim:15},{},"1: +80% 生命力ダメ、+20 攻撃能力 \n2: +80% カオスダメ、+20 攻撃能力 \n3: +35 精神力、+3% 攻撃能力、ペットボーナス (+60% 全ダメ、+120% カオス) \n4: +45 攻撃能力、+25 防御能力、15% カオス耐性 \n5: +100% 生命力/カオスダメ、+30 防御能力 \n6a: 5-18 カオスダメ、+4% クリティカル、ペットボーナス (+80% 全ダメ、+10% クリティカル) \n6b: 星座スキル獲得\n\n【星座スキル】Hungering Void (虚無の飢え)\n発動: 攻撃時 33%"],
+  ["Ishtak, the Spring Maiden 春の乙女 イシュターク",6,{ord:10,prim:15},{},"1: +300 ヘルス/エナジー、ペットボーナス (+200 装甲) \n2: +300 ヘルス、25% 毒酸耐性、ペットボーナス (30% 毒酸耐性) \n3: +6% 総合速度、30% 減速耐性、ペットボーナス (+80% 全ダメージ) \n4: +300 ヘルス、20% 出血耐性、ペットボーナス (+80% 全ダメ、30% 出血耐性) \n5: +3% 精神力、+4% 防御能力、ペットボーナス (5% 物理耐性、20% ヘルス減少耐性) \n6: 星座スキル獲得\n\n【星座スキル】Nature's Guardians (ネイチャーズ ガーディアンズ)\n発動: 被打時 25%"],
+  ["Leviathan リヴァイアサン",7,{asc:13,eld:13},{},"1: 6 冷気ダメ、+80% 冷気ダメ \n2: +35 体格、+8% ヘルス \n3: +10% エナジー、+60 防御能力、エナジー再生量増加 20% \n4: 5% 物理耐性、20% 刺突/生命力耐性 \n5a: 12 冷気ダメ、+100% 冷気ダメ \n5b: 60 凍傷/3s、+100% 凍傷、+3% 最大冷気耐性 \n5c: 星座スキル獲得\n\n【星座スキル】Whirlpool (渦巻き)\n発動: 攻撃時 30%"],
+  ["Light of Empyrion エンピリオンの光",7,{ord:8,prim:18},{},"1: +80% 火炎ダメ、+25 防御能力 \n2: +80% 物理ダメ、+25 防御能力 \n3: +10% ヘルス、15% 生命力/エレ耐性 \n4: +100% 物理/火炎ダメ、+10% ヘルス \n5: +10% クトーニック特攻、20% イーサー/カオス耐性 \n6: 14-24 火炎ダメ、+3% 最大イーサー/カオス耐性 \n7: 星座スキル獲得\n\n【星座スキル】Light of Empyrion (エンピリオンの光)\n発動: 被打時 30%"],
+  ["Mogdrogen the Wolf モグドロゲン ザ ウルフ",6,{asc:15,eld:12},{},"1: +300 ヘルス、+35 攻撃能力、ペットボーナス (+5% 攻撃能力) \n2: +10% アンデッド特攻、+80% 出血ダメ、ペットボーナス (+60% 全ダメ) \n3: +350 ヘルス、+50 防御能力、20% 生命力耐性、ペットボーナス (+120% 出血、+10% ヘルス) \n4: 54 出血/3s、+80% 出血 (+50% 延長)、20% 治癒向上 \n5: +4% 攻撃能力、15% エレ/出血耐性、+3% 最大出血耐性、ペットボーナス (+80% 全ダメ) \n6: 星座スキル獲得\n\n【星座スキル】Howl of Mogdrogen (モグドロゲンの遠吠え)\n発動: 攻撃時 20%"],
+  ["Obelisk of Menhir メンヒルのオベリスク",7,{ord:8,prim:15},{},"1: 装甲強化 10% \n2a: +30 防御能力、+210 装甲 \n3a: +40 防御能力、+6% 防御能力 \n2b: 120 物理報復、+140% 全報復ダメ \n3b: +5% シールドブロック率、+40% シールドダメブロック \n4b: 30% 気絶/凍結短縮、装甲吸収 18%、+3% 最大刺突耐性 \n5b: 星座スキル獲得\n\n【星座スキル】Stone Form (ストーン フォーム)\n発動: ブロック時 33% 【要/盾】"],
+  ["Oleron オレロン",7,{asc:20,ord:7},{},"1: +30 体格/狡猾性、+300 ヘルス \n2: +80% 物理/体内損傷/出血ダメ \n3: +35 攻撃能力、10% 出血耐性、+80 装甲 \n4: +350 ヘルス、4% 物理耐性 \n5a: 12-16 物理ダメ、+120% 物理、+100% 出血 \n5b: 120 体内損傷/5s、+120% 体内損傷、+35 攻撃能力、+2% 最大刺突耐性 \n5c: 星座スキル獲得\n\n【星座スキル】Blind Fury (盲目的激怒)\n発動: クリティカル攻撃時 100%"],
+  ["Rattosh, the Veilwarden ベールの番人 ラトッシュ",6,{chaos:6,eld:10,ord:6},{},"1: +350 ヘルス、+30 攻撃能力 \n2: +80% 生命力/イーサーダメ \n3: +150% 生命力減衰 (+50% 延長)、+45 攻撃/防御能力 \n4: 54 生命力減衰/3s、+100% 生命力/イーサーダメ \n5: 10 生命力ダメ、5% 物理耐性、15% 刺突/出血耐性 \n6: 星座スキル獲得\n\n【星座スキル】Will of Rattosh (ラトッシュの意志)\n発動: 攻撃時 15%"],
+  ["Spear of the Heavens 天の槍",6,{chaos:7,prim:20},{},"1: +80% 雷ダメ、+20 攻撃能力 \n2: +80% イーサーダメ、+20 攻撃能力 \n3: +5% 攻撃能力、15% イーサー耐性 \n4: 10 イーサーダメ、+5% クリティカルダメ、エナジー再生増加 15% \n5: +100% 雷/イーサーダメ、+3% 最大雷耐性 \n6: 星座スキル獲得\n\n【星座スキル】Spear of the Heavens (天の槍)\n発動: 被打時 50%"],
+  ["Tree of Life 生命の樹",6,{ord:7,prim:20},{},"1: +8% ヘルス、ペットボーナス (+12% ヘルス) \n2: +60 ヘルス再生/s、ペットボーナス (ヘルス再生量増加 50%) \n3a: +8% ヘルス、再生増加 30%、ペットボーナス (+15% ヘルス) \n3b: +30 防御能力、+60 ヘルス再生/s、ペットボーナス (ヘルス再生量増加 50%) \n4ba: +8% ヘルス、再生増加 30%、ペットボーナス (+80 ヘルス再生/s) \n4bb: 星座スキル獲得\n\n【星座スキル】Healing Rain (ヒーリング レイン)\n発動: 被打時 25%"],
+  ["Ultos, Shepherd of Storms 嵐の番人 ウルトス",6,{chaos:6,eld:10,prim:10},{},"1: +80% 冷気ダメ、+25 攻撃能力 \n2: +80% 雷ダメ、+25 攻撃能力 \n3a: +350 ヘルス、15% カオス耐性 \n3b: +5% クリティカル、+120% 凍傷/感電、+20 攻撃能力 \n4b: 10-30 雷ダメ、+100% 冷気/雷 \n5b: 星座スキル獲得\n\n【星座スキル】Hand of Ultos (ウルトスの手)\n発動: クリティカル攻撃時 100%"],
+  ["Ulzuin's Torch ウルズインの松明",7,{chaos:8,eld:15},{},"1: +80% 火炎ダメ、+20 攻撃能力 \n2: +5% 攻撃能力、15% カオス耐性 \n3: +5% クリティカルダメ、+5% 移動速度 \n4a: 12-15 火炎ダメ、+100% 火炎ダメ \n5a: 54 燃焼/3s、+100% 燃焼、20% 気絶短縮、+3% 最大火炎耐性 \n4b: +100% 燃焼 (+50% 延長)、+120 装甲 \n5b: 星座スキル獲得\n\n【星座スキル】Meteor Shower (メテオ シャワー)\n発動: 攻撃時 30%"],
+  ["Unknown Soldier 無名戦士",7,{asc:15,ord:8},{},"1: +80% 刺突ダメ、+15 攻撃能力 \n2: 54 出血/3s、+80% 出血ダメ、+40 攻撃能力 \n3a: +400 ヘルス、+5% 攻撃速度 \n3b: +120% 刺突/出血ダメ \n4b: +8% ヘルス、+40 攻撃能力、30% スキル妨害耐性 \n5b: 20 刺突ダメ、+12% クリティカル、+4% 攻撃能力 \n6b: 星座スキル獲得\n\n【星座スキル】Living Shadow (リビング シャドウ)\n発動: クリティカル攻撃時 100%"],
+  ["Vire, the Stone Matron 石の守護女神 ヴィール",6,{asc:12,prim:18},{},"1: +300 ヘルス、+50 装甲 \n2: +80% 物理/体内損傷、120 物理報復 \n3: +8% ヘルス、+80 装甲、+30% シールドダメブロック \n4a: +120% 物理/体内損傷、+3% 狡猾性、+140% 全報復ダメ \n4b: 5% 物理耐性、15% イーサー/カオス/出血耐性 \n5b: 星座スキル獲得\n\n【星座スキル】Fist of Vire (ヴィールの拳)\n発動: 被打時 20%"],
+  ["Azrakaa, the Eternal Sands 永遠の砂 アズラカー",6,{asc:12,ord:6,prim:8},{},"1: +80% 物理/刺突ダメ \n2: +300 ヘルス、+90 装甲 \n3: +350 ヘルス、+50 防御能力、+6% 移動速度 \n4a: +50 防御能力、+6% 攻撃/詠唱速度 \n4b: 12-16 刺突ダメ、+120% 物理/刺突ダメ \n5: 星座スキル獲得\n\n【星座スキル】Shifting Sands (変移の砂)\n発動: 攻撃時 20%"],
+  ["Korvaak, the Eldritch Sun エルドリッチの太陽 コルヴァーク",6,{eld:10,prim:18},{},"1: +30% 全ダメ、+300 ヘルス、ペットボーナス (+40% 全ダメ) \n2: +8% ヘルス、+2 エナジー再生/s、ペットボーナス (+12% ヘルス) \n3: 20% カオス耐性、ペットボーナス (20% カオス耐性) \n4a: +50% 全ダメ、+5% 攻撃能力、ペットボーナス (+80% 全ダメ、+5% 攻撃能力) \n4b: 星座スキル獲得 \n4c: +50% 全ダメ、+8% クリティカルダメ、ペットボーナス (+80% 全ダメ、+8% クリティカル)\n\n【星座スキル】Eye of Korvaak (コルヴァークの目)\n発動: クリティカル攻撃時 100%"],
+  ["Yugol, the Insatiable Night 飽くことなき夜 ユゴール",6,{chaos:7,eld:20},{},"1: +80% 冷気ダメ、+25 攻撃能力 \n2: +80% 酸ダメ、+300 ヘルス、+25 攻撃能力 \n3: 25% 生命力耐性、10% 反射削減、30% 石化短縮 \n4a: 8 冷気/8 酸、8% 攻撃ダメをヘルスに変換、40% ライフ吸収耐性 \n5a: 星座スキル獲得 \n4b: +100% 冷気/酸ダメ、+4% 精神力\n\n【星座スキル】Black Blood of Yugol (ユゴールの黒血)\n発動: 被打時 30%"],
+];
+
+const CAP = 55;
+const state = {
+  crossroads: {asc:false,chaos:false,eld:false,ord:false,prim:false},
+  crossroadExcluded: new Set(),
+  selected: new Set(),
+  suggested: new Set(),
+  suggestedCrossroads: new Set(), // 逆引き計算で自動的にONにした岐路の色(手動選択と区別するため)
+  targets: new Set(),
+  excluded: new Set(),
+  partial: new Map(), // key -> Set(取得済みノードラベル "1","3a" 等)
+  mode: 'manual', // 'manual' | 'target'
+};
+
+function resetState(){
+  state.crossroads = {asc:false,chaos:false,eld:false,ord:false,prim:false};
+  state.crossroadExcluded = new Set();
+  state.selected = new Set();
+  state.suggested = new Set();
+  state.suggestedCrossroads = new Set();
+  state.targets = new Set();
+  state.excluded = new Set();
+  state.partial = new Map();
+  state.mode = 'manual';
+}
+
+// desc文字列(「N: 内容」形式の行の集合)からノード一覧を抽出
+// テキストから「ペットボーナス(...)」部分を分離し、PC用/ペット用に分ける
+function splitPetBonus(text){
+  const m = text.match(/[、,]?\s*ペットボーナス\s*[:：]?\s*\(([^)]*)\)/);
+  if (!m) return { main: text, pet: null };
+  const main = text.replace(m[0], '').trim().replace(/[、,]\s*$/, '');
+  return { main, pet: m[1].trim() };
+}
+
+function parseOrderNodes(desc){
+  if (!desc) return [];
+  return desc.split('\n').map(line => {
+    const m = line.match(/^(\d+[a-z]?): (.+)$/);
+    return m ? { label: m[1], text: m[2].trim() } : null;
+  }).filter(Boolean);
+}
+
+function effectiveCost(key, item){
+  return state.partial.has(key) ? state.partial.get(key).size : item[1];
+}
+function effectiveGrant(key, item){
+  // 親和性は星座を完成させて初めて付与される(部分投資では付与されない)
+  if (state.partial.has(key)) return z();
+  return item[3];
+}
+
+function totalCost(){
+  let c = 0;
+  AFF.forEach(a => { if (state.crossroads[a]) c += 1; });
+  state.selected.forEach(key => {
+    const item = findItem(key);
+    if (item) c += effectiveCost(key, item);
+  });
+  return c;
+}
+
+function findItem(key){
+  const [tier, idx] = key.split('-');
+  const arr = tier === 't1' ? TIER1 : tier === 't2' ? TIER2 : TIER3;
+  return arr[parseInt(idx)];
+}
+
+// 英名+日本語名の文字列から日本語部分だけを抜き出す
+function jaOnly(name){
+  const m = name.match(/[\u3040-\u30FF\u3400-\u9FFF\uFF00-\uFFEF][\s\S]*$/);
+  return m ? m[0].trim() : name;
+}
+
+function grantedTotals(){
+  const g = z();
+  AFF.forEach(a => { if (state.crossroads[a]) g[a] += 1; });
+  state.selected.forEach(key => {
+    const item = findItem(key);
+    if (!item) return;
+    const grant = effectiveGrant(key, item);
+    AFF.forEach(a => { g[a] += (grant[a]||0); });
+  });
+  return g;
+}
+
+function allTier1(){ return TIER1.map((item, idx) => ({ key: `t1-${idx}`, item })); }
+
+// 目標星座を満たすために必要な、色ごとの最大要求値
+// 目標(〇)または部分取得(△)に指定された星座を「解禁したい対象」として扱う
+function goalKeys(){
+  return new Set([...state.targets, ...state.partial.keys()]);
+}
+
+function targetMaxReq(){
+  const req = z();
+  goalKeys().forEach(key => {
+    const item = findItem(key);
+    if (!item) return;
+    AFF.forEach(a => { req[a] = Math.max(req[a], item[2][a]||0); });
+  });
+  return req;
+}
+
+// 逆引き計算の基準:岐路の実際の状態 + 既存の(目標以外の)選択済み星座 + 目標自身の完成時付与
+function currentGrantedExcludingSuggested(){
+  const g = z();
+  AFF.forEach(a => { if (state.crossroads[a]) g[a] += 1; });
+  state.targets.forEach(key => {
+    const item = findItem(key);
+    if (!item) return;
+    AFF.forEach(a => { g[a] += (item[3][a]||0); });
+  });
+  state.selected.forEach(key => {
+    if (state.targets.has(key)) return;
+    const item = findItem(key);
+    if (!item) return;
+    const grant = effectiveGrant(key, item);
+    AFF.forEach(a => { g[a] += (grant[a]||0); });
+  });
+  return g;
+}
+
+function computeDeficit(){
+  const maxReq = targetMaxReq();
+  const granted = currentGrantedExcludingSuggested();
+  const deficit = z();
+  AFF.forEach(a => { deficit[a] = Math.max(0, maxReq[a] - granted[a]); });
+  return { maxReq, granted, deficit };
+}
+
+// 貪欲法: 不足親和性を最小コストで埋める組み合わせを Tier1/Tier2 + 岐路 から探す
+// 「リセット直後」を基準にするため、既に選択済みかどうかは無視し、目標/除外以外は全て候補にする
+function solveSuggestions(){
+  // 前回の逆引き計算で自動追加された推奨分は、比較しやすいよう再計算のたびに巻き戻す
+  state.suggested.forEach(key => state.selected.delete(key));
+  state.suggested.clear();
+  state.suggestedCrossroads.forEach(a => { state.crossroads[a] = false; });
+  state.suggestedCrossroads.clear();
+
+  const { deficit } = computeDeficit();
+  let granted = currentGrantedExcludingSuggested();
+  const totalDeficit = () => AFF.reduce((s,a)=>s+deficit[a],0);
+  const chosen = [];
+  const chosenKeys = new Set();     // このソルブ実行中に既に選んだ星座
+  const chosenCrossroads = new Set(); // このソルブ実行中に既に選んだ岐路の色
+  let guard = 0;
+
+  while (totalDeficit() > 0 && guard < 80) {
+    guard++;
+
+    const crossroadCandidates = AFF.filter(a => !state.crossroadExcluded.has(a) && !chosenCrossroads.has(a) && !state.crossroads[a]).map(a => ({
+      key: `cr-${a}`, cost: 1, grant: {[a]:1}, label: `岐路(${AFF_LABEL[a]})`
+    }));
+    const t1Candidates = TIER1.map((item, idx) => {
+      const key = `t1-${idx}`;
+      if (state.targets.has(key) || state.excluded.has(key) || chosenKeys.has(key) || state.selected.has(key)) return null;
+      return { key, cost: item[1], grant: item[3], label: jaOnly(item[0]) };
+    }).filter(Boolean);
+    const t2Candidates = TIER2.map((item, idx) => {
+      const key = `t2-${idx}`;
+      if (state.targets.has(key) || state.excluded.has(key) || chosenKeys.has(key) || state.selected.has(key)) return null;
+      if (!reqSatisfied(item[2], granted)) return null; // まだ解禁できない
+      return { key, cost: item[1], grant: item[3], label: jaOnly(item[0]) + '(T2)' };
+    }).filter(Boolean);
+
+    const pool = [...crossroadCandidates, ...t1Candidates, ...t2Candidates];
+    let best = null, bestScore = 0;
+    for (const c of pool) {
+      const usefulness = AFF.reduce((s,a)=> s + Math.min(deficit[a], c.grant[a]||0), 0);
+      if (usefulness <= 0) continue;
+      const score = usefulness / c.cost;
+      if (score > bestScore) { bestScore = score; best = c; }
+    }
+    if (!best) break;
+
+    chosen.push(best);
+    if (best.key.startsWith('cr-')) {
+      const a = best.key.slice(3);
+      chosenCrossroads.add(a);
+      state.crossroads[a] = true; // 実際の選択にも反映
+      state.suggestedCrossroads.add(a); // 推奨扱いとして記録(次回計算時に巻き戻す対象)
+    } else {
+      chosenKeys.add(best.key);
+      state.suggested.add(best.key);
+      state.selected.add(best.key); // 実際の選択にも反映
+    }
+    AFF.forEach(a => {
+      granted[a] += (best.grant[a]||0);
+      deficit[a] = Math.max(0, deficit[a] - (best.grant[a]||0));
+    });
+  }
+
+  return { chosen, remaining: deficit, solved: totalDeficit() <= 0 };
+}
+
+function reqSatisfied(req, granted){
+  return AFF.every(a => (granted[a]||0) >= (req[a]||0));
+}
+
+function renderAffinityRow(granted){
+  // compute max requirement per color among selected for "still needed" hint
+  const row = document.getElementById('affinityRow');
+  row.innerHTML = '';
+  AFF.forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'aff-card';
+    div.innerHTML = `
+      <div class="aff-dot" style="background:${AFF_COLOR[a]};color:${AFF_COLOR[a]}"></div>
+      <div class="aff-name">${AFF_LABEL[a]}</div>
+      <div class="aff-val" style="color:${AFF_COLOR[a]}">${granted[a]}</div>
+    `;
+    row.appendChild(div);
+  });
+}
+
+function renderCrossroads(){
+  const row = document.getElementById('crossroadsRow');
+  row.innerHTML = '';
+  AFF.forEach(a => {
+    const wrap = document.createElement('div');
+    wrap.style.display = 'flex';
+    wrap.style.alignItems = 'center';
+
+    const btn = document.createElement('div');
+    btn.className = 'cr-toggle' + (state.crossroads[a] ? ' active' : '');
+    btn.style.color = AFF_COLOR[a];
+    btn.style.opacity = state.crossroadExcluded.has(a) ? '0.4' : '1';
+    btn.innerHTML = `<span class="cr-dot" style="background:${AFF_COLOR[a]}"></span>岐路(${AFF_LABEL[a]}) 1pt`;
+    btn.onclick = () => {
+      if (state.crossroadExcluded.has(a)) return;
+      state.crossroads[a] = !state.crossroads[a];
+      state.suggestedCrossroads.delete(a); // 手動操作なので推奨扱いから外す
+      renderAll();
+    };
+
+    const x = document.createElement('div');
+    x.className = 'cr-x' + (state.crossroadExcluded.has(a) ? ' active' : '');
+    x.title = '逆引き候補から除外';
+    x.textContent = '×';
+    x.onclick = () => {
+      if (state.crossroadExcluded.has(a)) { state.crossroadExcluded.delete(a); }
+      else { state.crossroadExcluded.add(a); state.crossroads[a] = false; }
+      renderAll();
+    };
+
+    wrap.appendChild(btn);
+    wrap.appendChild(x);
+    row.appendChild(wrap);
+  });
+}
+
+function affixHTML(map, prefix){
+  const parts = AFF.filter(a => map[a]).map(a =>
+    `<span class="affix-group"><span class="pip" style="background:${AFF_COLOR[a]}"></span>${map[a]}</span>`
+  );
+  if (!parts.length) return '';
+  return `<div class="star-affix"><span style="color:var(--text-dim)">${prefix}</span>${parts.join('')}</div>`;
+}
+
+function renderTier(title, arr, tierKey, granted){
+  const block = document.createElement('div');
+  block.className = 'tier-block';
+  block.innerHTML = `<div class="tier-title">${title}</div>`;
+  const grid = document.createElement('div');
+  grid.className = 'star-grid';
+
+  arr.forEach((item, idx) => {
+    const [name, cost, req, grant, desc] = item;
+    const key = `${tierKey}-${idx}`;
+    const selected = state.selected.has(key);
+    const isTarget = state.targets.has(key);
+    const isSuggested = state.suggested.has(key);
+    const isExcluded = (tierKey === 't1' || tierKey === 't2') && state.excluded.has(key);
+    const isPartial = state.partial.has(key);
+    const dispCost = isPartial ? `${state.partial.get(key).size}/${cost}pt` : `${cost}pt`;
+    const nodes = parseOrderNodes(desc);
+    const ok = reqSatisfied(req, granted);
+    const card = document.createElement('div');
+    card.className = 'star-card'
+      + (selected ? ' selected' : '')
+      + (selected && !ok ? ' locked' : '')
+      + (isSuggested ? ' suggested' : '')
+      + (isExcluded ? ' excluded' : '');
+    card.innerHTML = `
+      ${isSuggested ? '<div class="suggested-badge">推奨</div>' : ''}
+      ${!isSuggested && isExcluded ? '<div class="excluded-badge">除外中</div>' : ''}
+      <div class="star-top">
+        <div style="display:flex;align-items:flex-start;gap:8px;min-width:0;">
+          <div class="checkbox"><svg viewBox="0 0 10 10"><path d="M1 5l2.5 2.5L9 1.5" stroke="#1a1420" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="star-name">${jaOnly(name)}</div>
+        </div>
+        <div class="star-cost">${dispCost}</div>
+      </div>
+      <div class="star-actions">
+        ${(tierKey === 't1' || tierKey === 't2') ? `<div class="star-tag-btn${isExcluded ? ' is-excluded' : ''}" title="取得しない(逆引き候補から除外)">×</div>` : ''}
+        <div class="star-tag-btn${isPartial ? ' is-partial' : ''}" title="途中まで取得">△</div>
+        <div class="star-tag-btn${isTarget ? ' is-target' : ''}" title="取得する(目標)">〇</div>
+      </div>
+      ${affixHTML(req, '要求')}
+      ${affixHTML(grant, '付与')}
+      ${isPartial ? `
+        <div class="partial-control" data-partial-control>
+          ${nodes.length === 0 ? '<div style="color:var(--text-dim);font-size:11px;">(ノード情報なし)</div>' : nodes.map(n => {
+            const { main, pet } = splitPetBonus(n.text);
+            return `
+            <label class="node-row" data-node-label="${n.label}">
+              <input type="checkbox" data-node-checkbox="${n.label}" ${state.partial.get(key).has(n.label) ? 'checked' : ''}>
+              <span class="node-label">${n.label}</span>
+              <span class="node-text">${pet ? '<span class="node-pc-label">PC: </span>' : ''}${main}${pet ? `<span class="node-pet">ペット: ${pet}</span>` : ''}</span>
+            </label>
+          `;
+          }).join('')}
+        </div>
+        <div class="partial-summary">取得中: ${state.partial.get(key).size} / ${nodes.length || cost} 項目・親和性は未付与(コストのみ加算)</div>
+      ` : ''}
+      ${selected && !ok ? '<div class="req-warn">⚠ 親和性不足で未解禁</div>' : ''}
+    `;
+    if (tierKey === 't1' || tierKey === 't2') {
+      card.querySelector('[title="取得しない(逆引き候補から除外)"]').onclick = (e) => {
+        e.stopPropagation();
+        if (state.excluded.has(key)) { state.excluded.delete(key); }
+        else {
+          state.excluded.add(key);
+          state.targets.delete(key);
+          state.partial.delete(key);
+          state.suggested.delete(key);
+          state.selected.delete(key);
+        }
+        renderAll();
+      };
+    }
+    card.querySelector('[title="途中まで取得"]').onclick = (e) => {
+      e.stopPropagation();
+      if (state.partial.has(key)) {
+        state.partial.delete(key);
+      } else {
+        const nodeSet = new Set();
+        if (nodes.length > 0) nodeSet.add(nodes[0].label); // 最初のノードだけ初期選択
+        state.partial.set(key, nodeSet);
+        state.selected.add(key);
+        state.suggested.delete(key);
+        state.excluded.delete(key);
+        state.targets.delete(key);
+      }
+      renderAll();
+    };
+    card.querySelector('[title="取得する(目標)"]').onclick = (e) => {
+      e.stopPropagation();
+      if (state.targets.has(key)) { state.targets.delete(key); }
+      else {
+        state.targets.add(key);
+        state.selected.add(key);
+        state.suggested.delete(key);
+        state.partial.delete(key);
+        state.excluded.delete(key);
+      }
+      renderAll();
+    };
+    const partialControl = card.querySelector('[data-partial-control]');
+    if (partialControl) {
+      partialControl.onclick = (e) => e.stopPropagation();
+      partialControl.querySelectorAll('[data-node-checkbox]').forEach(cb => {
+        cb.onchange = () => {
+          const label = cb.dataset.nodeCheckbox;
+          const set = state.partial.get(key);
+          if (!set) return;
+          if (cb.checked) set.add(label); else set.delete(label);
+          if (set.size === 0) {
+            // 全部外したら部分取得自体を解除
+            state.partial.delete(key);
+            state.selected.delete(key);
+          }
+          renderAll();
+        };
+      });
+    }
+    card.onclick = () => {
+      hideTooltip();
+      if (state.targets.has(key)) return;
+      if (state.partial.has(key)) return;
+      state.suggested.delete(key);
+      if (state.selected.has(key)) state.selected.delete(key);
+      else { state.selected.add(key); state.excluded.delete(key); }
+      renderAll();
+    };
+    card.addEventListener('mouseenter', () => showTooltip(card, desc));
+    card.addEventListener('mouseleave', hideTooltip);
+    grid.appendChild(card);
+  });
+
+  block.appendChild(grid);
+  return block;
+}
+
+function renderTargetPanel(){
+  const chipsEl = document.getElementById('targetChips');
+  const deficitEl = document.getElementById('deficitRow');
+  const resultEl = document.getElementById('suggestResult');
+
+  const goals = goalKeys();
+  if (goals.size === 0) {
+    chipsEl.innerHTML = '<span class="target-empty">下の星座カードの〇(確定取得)か△(途中まで取得)を押して対象に指定してください</span>';
+  } else {
+    chipsEl.innerHTML = '';
+    goals.forEach(key => {
+      const item = findItem(key);
+      if (!item) return;
+      const isPartial = state.partial.has(key);
+      const chip = document.createElement('div');
+      chip.className = 'target-chip';
+      chip.innerHTML = `${isPartial ? '△' : '〇'} ${jaOnly(item[0])} <span class="x">✕</span>`;
+      chip.querySelector('.x').onclick = () => {
+        state.targets.delete(key);
+        state.partial.delete(key);
+        renderAll();
+      };
+      chipsEl.appendChild(chip);
+    });
+  }
+
+  const { maxReq, deficit } = computeDeficit();
+  deficitEl.innerHTML = '';
+  let anyReq = false;
+  AFF.forEach(a => {
+    if (maxReq[a] <= 0) return;
+    anyReq = true;
+    const need = deficit[a] > 0;
+    const pill = document.createElement('div');
+    pill.className = 'deficit-pill ' + (need ? 'need' : 'ok');
+    pill.innerHTML = `<span class="pip" style="background:${AFF_COLOR[a]}"></span>${AFF_LABEL[a]} 要求${maxReq[a]} ${need ? `(あと${deficit[a]}不足)` : '(充足)'}`;
+    deficitEl.appendChild(pill);
+  });
+  if (!anyReq) deficitEl.innerHTML = '<span class="target-empty">要求親和性なし、または対象未選択</span>';
+
+  document.getElementById('solveBtn').disabled = goals.size === 0;
+  resultEl.innerHTML = '';
+}
+
+// 星座の効果テキストから "+N% ラベル" 形式のステータスを抜き出す (PC/ペットを区別して返す)
+const CANONICAL_LABEL = {
+  'エレ耐性': 'エレメンタル耐性',
+  'エレダメ': 'エレメンタルダメージ',
+  'エレダメージ': 'エレメンタルダメージ',
+  'エレ': 'エレメンタル',
+  '近接攻撃回避率': '近接回避率',
+  '投射物回避率': '投射回避率',
+  'エナジー量再生': 'エナジー再生',
+  'エナジー再生増加量': 'エナジー再生量増加',
+  'ヘルス再生増加': 'ヘルス再生量増加',
+  '防御': '防御能力',
+  '攻撃': '攻撃能力',
+};
+function parseDescStats(desc){
+  const results = [];
+  if (!desc) return results;
+
+  // 星座スキルのブロック(発動条件など)は集計対象外
+  let body = desc.split('\n\n【星座スキル】')[0];
+
+  const lines = body.split('\n');
+  for (const rawLine of lines) {
+    let line = rawLine.trim();
+    if (!line) continue;
+    line = line.replace(/^\d+[a-z]*:\s*/, ''); // 複数文字の分岐ラベル(4ba, 5bb等)にも対応
+    if (!line || line.startsWith('(') || line.startsWith('【')) continue;
+    if (line.includes('星座スキル獲得')) continue;
+
+    const petMatches = [...line.matchAll(/ペットボーナス\s*[:：]?\s*[（(]([^）)]*)[）)]/g)];
+    let mainLine = line.replace(/[、,]?\s*ペットボーナス\s*[:：]?\s*[（(][^）)]*[）)]/g, '').trim();
+
+    let lineMainLastLabel = null; // このノードのPC側で最後に出てきた耐性/効果名(ペット側の「同耐性」参照用)
+
+    const extractStats = (text, isPet) => {
+      // 事前処理: レンジ表記(6-10)は上限値のみ残す、特攻系・発動率プレフィックスは除去、括弧は除去
+      const cleaned = text
+        .replace(/(\d+)-(\d+)(?=\s*[^\d+\-]|$)/g, '$2')
+        .replace(/(アンデッド|ビースト|クトーニック|人間)(\/(アンデッド|ビースト|クトーニック|人間))*特攻/g, '')
+        .replace(/\d+%?\s*の?\s*確率で\s*/g, '')
+        .replace(/攻撃ダメージを?ヘルスに変換/g, '攻撃ダメージ変換')
+        .replace(/[()（）]/g, '')
+        .replace(/、\s*、/g, '、');
+
+      const rawSegments = cleaned.split(/[、,]/).map(s => s.trim()).filter(Boolean);
+
+      // "80% 出血ダメージ +50% 延長" のように延長が同じ塊に同居してる場合は分離
+      const segments = [];
+      for (const seg of rawSegments) {
+        const extMatch = seg.match(/^(.*?)\s*([+\-]?\d+(?:\.\d+)?%)\s*延長$/);
+        if (extMatch && /\d/.test(extMatch[1])) {
+          segments.push(extMatch[1].trim());
+          segments.push({ ext: extMatch[2], base: extMatch[1].trim() });
+        } else {
+          segments.push(seg);
+        }
+      }
+
+      const suffixWords = ['吸収耐性','ダメージ','耐性','短縮','報復','削減','変換','向上','増加','能力','回避率','速度'];
+      const parseSeg = (seg) => {
+        const nums = seg.match(/[+\-]?\d+(?:\.\d+)?%?/g);
+        if (!nums || nums.length === 0) return null;
+        const value = nums[0];
+        let label = seg.replace(value, '').trim().replace(/^[のを]/, '').trim();
+        label = label.replace(/\/+$/g, '').replace(/^\/+/g, '').trim();
+        if (!label) return null;
+        if (/^[秒分s]$/.test(label)) return null;
+        label = label.replace(/ダメ(?!ージ)/g, 'ダメージ');
+        if (label === 'クリティカル') label = 'クリティカルダメージ';
+        return { value, label };
+      };
+
+      let lastMainLabel = isPet ? lineMainLastLabel : null;
+      for (const seg of segments) {
+        if (typeof seg === 'object' && seg.ext) {
+          const parsed = parseSeg(seg.base);
+          const baseLabel = parsed ? parsed.label : lastMainLabel;
+          if (baseLabel) results.push({ raw: seg.ext, label: baseLabel + '(延長)', pet: isPet });
+          continue;
+        }
+        const parsed = parseSeg(seg);
+        if (!parsed) continue;
+        let { value, label } = parsed;
+
+        // 単体で「延長」だけが残った場合は直前の主ラベルに紐付ける
+        if (label === '延長') {
+          if (lastMainLabel) results.push({ raw: value, label: lastMainLabel + '(延長)', pet: isPet });
+          continue;
+        }
+        // 「同耐性」「同」= 直前と同じ耐性名を指す表記(ペットボーナス欄でよく使われる)
+        if (/^同(耐性)?$/.test(label) && lastMainLabel) {
+          label = lastMainLabel;
+        }
+
+        let labels = [label];
+        if (label.includes('/')) {
+          const foundSuffix = suffixWords.find(sfx => label.endsWith(sfx));
+          if (foundSuffix) {
+            const base = label.slice(0, -foundSuffix.length);
+            const parts = base.split('/').map(p => p.replace(/^\d+\s*/, '').trim()).filter(Boolean);
+            if (parts.length > 1) labels = parts.map(p => p + foundSuffix);
+          } else {
+            const parts = label.split('/').map(p => p.replace(/^\d+\s*/, '').trim()).filter(Boolean);
+            const looksLikeUnit = parts.some(p => /^\d*s$/i.test(p));
+            if (parts.length > 1 && !looksLikeUnit) labels = parts;
+          }
+        }
+        labels = labels.map(l => CANONICAL_LABEL[l] || l);
+        labels.forEach(l => results.push({ raw: value, label: l, pet: isPet }));
+        lastMainLabel = labels[labels.length - 1];
+      }
+      if (!isPet) lineMainLastLabel = lastMainLabel;
+    };
+
+    extractStats(mainLine, false);
+    petMatches.forEach(pm => extractStats(pm[1], true));
+  }
+  return results;
+}
+
+// ラベルからカテゴリを判定
+const CATEGORY_ORDER = ['攻撃', '防御', 'ダメージ', '耐性減少', '耐性', 'ヘルス回復', 'その他'];
+function categorize(label){
+  const base = label.replace(/\(延長\)$/, '');
+  if (base.includes('耐性減少')) return '耐性減少';
+  if (/耐性$/.test(base)) return '耐性';
+  if (base.includes('攻撃能力')) return '攻撃';
+  if (base.includes('防御能力')) return '防御';
+  if (/ヘルス(再生|回復)|治癒向上/.test(base)) return 'ヘルス回復';
+  if (/ダメージ$|^延長$/.test(label) || label.includes('(延長)')) return 'ダメージ';
+  return 'その他';
+}
+
+// 完全に取得済み(△の部分取得は除く)の星座の効果を、PC用/ペット用に分けて合算する
+function aggregateTakenBonuses(){
+  const pcTotals = new Map();   // label -> {sum, label, unit, category}
+  const petTotals = new Map();
+  const allArrs = [['t1', TIER1], ['t2', TIER2], ['t3', TIER3]];
+  allArrs.forEach(([tierKey, arr]) => {
+    arr.forEach((item, idx) => {
+      const key = `${tierKey}-${idx}`;
+      if (!state.selected.has(key)) return;
+      if (state.partial.has(key)) return; // 未完成は集計に含めない
+      const desc = item[4];
+      const stats = parseDescStats(desc);
+      stats.forEach(s => {
+        const isPct = s.raw.includes('%');
+        const num = parseFloat(s.raw.replace('%',''));
+        const mapKey = s.label + (isPct ? '%' : '');
+        const target = s.pet ? petTotals : pcTotals;
+        if (!target.has(mapKey)) target.set(mapKey, { sum: 0, label: s.label, unit: isPct ? '%' : '', category: categorize(s.label) });
+        target.get(mapKey).sum += num;
+      });
+    });
+  });
+  return { pc: [...pcTotals.values()], pet: [...petTotals.values()] };
+}
+
+function renderSummaryTooltip(){
+  const el = document.getElementById('summaryTooltip');
+  const { pc, pet } = aggregateTakenBonuses();
+  if (pc.length === 0 && pet.length === 0) {
+    el.innerHTML = '<div class="st-empty">取得済み星座の効果がここに合算表示されます</div>';
+    return;
+  }
+
+  const groupedHtml = (rows) => {
+    const byCategory = {};
+    rows.forEach(r => { (byCategory[r.category] = byCategory[r.category] || []).push(r); });
+    return CATEGORY_ORDER.filter(c => byCategory[c] && byCategory[c].length).map(cat => {
+      const catRows = byCategory[cat]
+        .sort((a,b) => Math.abs(b.sum) - Math.abs(a.sum))
+        .map(r => {
+          const sign = r.sum > 0 ? '+' : '';
+          const val = Number.isInteger(r.sum) ? r.sum : Math.round(r.sum * 10) / 10;
+          return `<div class="st-row"><span class="st-label">${r.label}</span><span class="st-val">${sign}${val}${r.unit}</span></div>`;
+        }).join('');
+      return `<div class="st-cat">${cat}</div>${catRows}`;
+    }).join('');
+  };
+
+  let html = '';
+  if (pc.length) html += `<div class="st-section">PC</div>${groupedHtml(pc)}`;
+  if (pet.length) html += `<div class="st-section">ペット</div>${groupedHtml(pet)}`;
+  el.innerHTML = html;
+}
+
+// ===== 保存枠(localStorage、5枠、ブラウザで開き直しても残る) =====
+const SLOT_COUNT = 5;
+const SLOT_PREFIX = 'devotionPlannerSlot_';
+
+function serializeState(){
+  return {
+    crossroads: { ...state.crossroads },
+    crossroadExcluded: [...state.crossroadExcluded],
+    selected: [...state.selected],
+    targets: [...state.targets],
+    excluded: [...state.excluded],
+    partial: [...state.partial.entries()].map(([k, set]) => [k, [...set]]),
+  };
+}
+
+function loadSnapshotIntoState(snap){
+  resetState();
+  state.crossroads = { ...snap.crossroads };
+  state.crossroadExcluded = new Set(snap.crossroadExcluded || []);
+  state.selected = new Set(snap.selected || []);
+  state.targets = new Set(snap.targets || []);
+  state.excluded = new Set(snap.excluded || []);
+  state.partial = new Map((snap.partial || []).map(([k, arr]) => [k, new Set(arr)]));
+}
+
+function snapshotSummary(snap){
+  const g = z();
+  let cost = 0;
+  AFF.forEach(a => { if (snap.crossroads[a]) { g[a] += 1; cost += 1; } });
+  const names = [];
+  (snap.selected || []).forEach(key => {
+    const item = findItem(key);
+    if (!item) return;
+    const partialEntry = (snap.partial || []).find(([k]) => k === key);
+    if (partialEntry) {
+      cost += partialEntry[1].length;
+      names.push(jaOnly(item[0]) + '(△)');
+    } else {
+      cost += item[1];
+      AFF.forEach(a => { g[a] += (item[3][a] || 0); });
+      names.push(jaOnly(item[0]));
+    }
+  });
+  return { cost, granted: g, names };
+}
+
+function getSlot(i){
+  try {
+    const raw = localStorage.getItem(SLOT_PREFIX + i);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+function setSlot(i, data){
+  try { localStorage.setItem(SLOT_PREFIX + i, JSON.stringify(data)); } catch(e) {}
+}
+function clearSlot(i){
+  try { localStorage.removeItem(SLOT_PREFIX + i); } catch(e) {}
+}
+
+function renderSlotBar(){
+  const bar = document.getElementById('slotBar');
+  bar.innerHTML = '';
+  for (let i = 1; i <= SLOT_COUNT; i++) {
+    const snap = getSlot(i);
+    const card = document.createElement('div');
+    card.className = 'slot-card' + (snap ? ' filled' : '');
+    if (snap) {
+      const sum = snapshotSummary(snap);
+      const affStr = AFF.filter(a => sum.granted[a] > 0).map(a => `${AFF_LABEL[a]}${sum.granted[a]}`).join(' ');
+      card.innerHTML = `
+        <div class="slot-title">枠 ${i}</div>
+        <div class="slot-summary">
+          ${sum.cost}pt・${sum.names.length}星座<br>
+          ${affStr || '(親和性なし)'}
+        </div>
+        <div class="slot-btns">
+          <div class="slot-btn" data-act="load">読込</div>
+          <div class="slot-btn" data-act="save">上書</div>
+          <div class="slot-btn danger" data-act="clear">削除</div>
+        </div>
+      `;
+    } else {
+      card.innerHTML = `
+        <div class="slot-title">枠 ${i}</div>
+        <div class="slot-summary"><span class="empty">(空)</span></div>
+        <div class="slot-btns">
+          <div class="slot-btn" data-act="save" style="flex:1 1 100%;">現在の状態を保存</div>
+        </div>
+      `;
+    }
+    card.querySelectorAll('[data-act]').forEach(btn => {
+      btn.onclick = () => {
+        const act = btn.dataset.act;
+        if (act === 'save') {
+          setSlot(i, serializeState());
+        } else if (act === 'load') {
+          loadSnapshotIntoState(snap);
+          document.getElementById('comparePanel').style.display = 'none';
+        } else if (act === 'clear') {
+          clearSlot(i);
+        }
+        renderAll();
+      };
+    });
+    bar.appendChild(card);
+  }
+}
+
+function renderComparePanel(){
+  const panel = document.getElementById('comparePanel');
+  const slots = [];
+  for (let i = 1; i <= SLOT_COUNT; i++) {
+    const snap = getSlot(i);
+    if (snap) slots.push({ i, snap, sum: snapshotSummary(snap) });
+  }
+  if (slots.length === 0) {
+    panel.innerHTML = '<div class="target-empty">保存済みの枠がありません。まず「保存」してください。</div>';
+    return;
+  }
+  const rows = [
+    { label: '祈祷ポイント', get: s => `${s.sum.cost} / ${CAP}` },
+    ...AFF.map(a => ({ label: AFF_LABEL[a], get: s => s.sum.granted[a] || 0 })),
+    { label: '取得星座', get: s => `<span class="names-inline">${s.sum.names.join('、') || '(なし)'}</span>` },
+  ];
+  let html = '<table class="compare-table"><thead><tr><th></th>';
+  slots.forEach(s => { html += `<th>枠 ${s.i}</th>`; });
+  html += '</tr></thead><tbody>';
+  rows.forEach(row => {
+    html += `<tr><th>${row.label}</th>`;
+    slots.forEach(s => {
+      const isNames = row.label === '取得星座';
+      html += `<td class="${isNames ? 'names' : ''}">${row.get(s)}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  panel.innerHTML = html;
+}
+
+document.getElementById('compareBtn').onclick = () => {
+  const panel = document.getElementById('comparePanel');
+  const willOpen = panel.style.display === 'none';
+  if (willOpen) renderComparePanel();
+  panel.style.display = willOpen ? 'block' : 'none';
+};
+
+function runSolve(){
+  state.mode = 'target';
+  const result = solveSuggestions();
+  renderAll();
+  const resultEl = document.getElementById('suggestResult');
+  if (!resultEl) return;
+  if (goalKeys().size === 0) {
+    resultEl.innerHTML = '<span class="target-empty">まず星座カードの〇か△で対象を指定してください。</span>';
+  } else if (result.chosen.length === 0) {
+    resultEl.innerHTML = '<span class="target-empty">既に必要親和性は満たされています。</span>';
+  } else {
+    const addedCost = result.chosen.reduce((s,c)=>s+c.cost,0);
+    const lines = result.chosen.map(c => `<div><span class="item">${c.label}</span> <span class="cost">+${c.cost}pt</span></div>`).join('');
+    resultEl.innerHTML = `
+      <div style="margin-bottom:6px;color:var(--text);">リセット状態からの最小レシピ(合計${addedCost}pt、Tier1/2と岐路から選出):</div>
+      ${lines}
+      ${!result.solved ? '<div style="color:#ff9aa3;margin-top:6px;">⚠ Tier1/2だけでは全ては埋まりません。他の星座からの供給が必要です。</div>' : ''}
+      <div style="margin-top:8px;color:var(--text-dim);font-size:10.5px;">※現在の選択状態を基準に、目標達成に不足する分の最小レシピを計算し、そのまま実際の選択(祈祷ポイント合計)にも反映しています。</div>
+    `;
+  }
+}
+
+function showTooltip(cardEl, desc){
+  const tooltip = document.getElementById('sharedTooltip');
+  const body = document.getElementById('sharedTooltipBody');
+  body.textContent = (desc || '(効果情報なし)').replace(/([、,])?\s*ペットボーナス/g, '\n　→ペットボーナス');
+  body.style.whiteSpace = 'pre-line';
+
+  tooltip.classList.add('show');
+  // 一旦表示してサイズを測る
+  const tw = Math.min(320, tooltip.offsetWidth || 280);
+  const th = tooltip.offsetHeight || 200;
+  const rect = cardEl.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+
+  let left = rect.left + rect.width / 2 - tw / 2;
+  left = Math.max(8, Math.min(left, vw - tw - 8));
+
+  let top;
+  const spaceBelow = vh - rect.bottom;
+  const spaceAbove = rect.top;
+  if (spaceBelow >= th + 12 || spaceBelow >= spaceAbove) {
+    top = Math.min(rect.bottom + 10, vh - th - 8);
+  } else {
+    top = Math.max(8, rect.top - th - 10);
+  }
+
+  tooltip.style.left = left + 'px';
+  tooltip.style.top = top + 'px';
+}
+function hideTooltip(){
+  document.getElementById('sharedTooltip').classList.remove('show');
+}
+// スマホ:タップ後にツールチップが張り付いたままになるのを防ぐ
+document.addEventListener('touchstart', (e) => {
+  if (!e.target.closest('.star-card')) hideTooltip();
+}, { passive: true });
+document.addEventListener('touchend', (e) => {
+  if (!e.target.closest('.star-card')) hideTooltip();
+}, { passive: true });
+window.addEventListener('scroll', hideTooltip, { passive: true, capture: true });
+
+function renderAll(){  const granted = grantedTotals();
+  renderAffinityRow(granted);
+  renderCrossroads();
+
+  document.getElementById('targetPanel').style.display = state.mode === 'target' ? 'block' : 'none';
+  document.getElementById('tabManual').classList.toggle('active', state.mode === 'manual');
+  document.getElementById('tabTarget').classList.toggle('active', state.mode === 'target');
+  if (state.mode === 'target') renderTargetPanel();
+
+  const tiersDiv = document.getElementById('tiers');
+  tiersDiv.innerHTML = '';
+  tiersDiv.appendChild(renderTier('Tier 1', TIER1, 't1', granted));
+  tiersDiv.appendChild(renderTier('Tier 2', TIER2, 't2', granted));
+  tiersDiv.appendChild(renderTier('Tier 3', TIER3, 't3', granted));
+
+  const cost = totalCost();
+  const pct = Math.min(100, (cost / CAP) * 100);
+  const fill = document.getElementById('budgetFill');
+  const num = document.getElementById('budgetNum');
+  fill.style.width = pct + '%';
+  num.textContent = `${cost} / ${CAP}`;
+  if (cost > CAP) { fill.classList.add('over'); num.classList.add('over'); }
+  else { fill.classList.remove('over'); num.classList.remove('over'); }
+
+  renderSummaryTooltip();
+  renderSlotBar();
+}
+
+document.getElementById('tabManual').onclick = () => { state.mode = 'manual'; renderAll(); };
+document.getElementById('tabTarget').onclick = () => { state.mode = 'target'; renderAll(); };
+document.getElementById('resetBtn').onclick = () => { resetState(); renderAll(); };
+document.getElementById('quickCalcBtn').onclick = () => { runSolve(); };
+document.getElementById('summaryBtn').onclick = (e) => {
+  e.stopPropagation();
+  document.getElementById('summaryTooltip').classList.toggle('open');
+};
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.summary-btn-wrap')) {
+    document.getElementById('summaryTooltip').classList.remove('open');
+  }
+});
+document.getElementById('solveBtn').onclick = () => { runSolve(); };
+
+renderAll();
+</script>
+</body>
+</html>
